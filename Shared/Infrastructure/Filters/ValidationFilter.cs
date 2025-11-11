@@ -1,7 +1,9 @@
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Http;
+using VoiceByAuribus_API.Shared.Domain;
 
 namespace VoiceByAuribus_API.Shared.Infrastructure.Filters;
 
@@ -11,13 +13,14 @@ public class ValidationFilter : IAsyncActionFilter
     {
         if (!context.ModelState.IsValid)
         {
-            var problemDetails = new ValidationProblemDetails(context.ModelState)
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Validation failed"
-            };
+            var errors = context.ModelState
+                .Where(x => x.Value?.Errors.Count > 0)
+                .SelectMany(x => x.Value!.Errors.Select(e => $"{x.Key}: {e.ErrorMessage}"))
+                .ToList();
 
-            context.Result = new BadRequestObjectResult(problemDetails);
+            var response = ApiResponse<object>.ErrorResponse("Validation failed", errors);
+            
+            context.Result = new BadRequestObjectResult(response);
             return;
         }
 

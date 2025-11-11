@@ -13,13 +13,20 @@ Features/                    # Feature-based vertical slices
   Voices/                    # Voice models feature (all layers)
     Domain/VoiceModel.cs
     Application/{Dtos,Mappings,Services}/
-    Infrastructure/Data/     # Feature-specific EF configurations
     Presentation/Controllers/
     VoicesModule.cs          # Feature DI registration
 Shared/                      # Cross-cutting concerns only
-  Domain/                    # BaseAuditableEntity, ISoftDelete, IHasUserId
+  Domain/                    # BaseAuditableEntity, ISoftDelete, IHasUserId, ApiResponse
   Interfaces/                # ICurrentUserService, IDateTimeProvider, IS3PresignedUrlService
-  Infrastructure/{Data,Services,Filters}/
+  Infrastructure/
+    Data/
+      ApplicationDbContext.cs
+      ModelBuilderExtensions.cs
+      Configurations/        # ALL EF Core entity configurations (organized by feature)
+    Services/                # CurrentUserService, S3PresignedUrlService, etc.
+    Filters/                 # ValidationFilter
+    Middleware/              # GlobalExceptionHandlerMiddleware
+    Controllers/             # BaseController
 ```
 
 **Critical Pattern**: Each feature is self-contained with its own layers. Add new features by creating `Features/NewFeature/` with `NewFeatureModule.cs` for DI registration, then call `builder.Services.AddNewFeature()` in `Program.cs`.
@@ -27,7 +34,10 @@ Shared/                      # Cross-cutting concerns only
 ## Database & EF Core
 
 - **DbContext**: `Shared/Infrastructure/Data/ApplicationDbContext.cs` - central context referencing all feature entities
-- **Entity Configurations**: Place in `Features/{Feature}/Infrastructure/Data/{Entity}Configuration.cs`
+- **Entity Configurations**: All `IEntityTypeConfiguration<T>` implementations must be placed in `Shared/Infrastructure/Data/Configurations/`
+  - Name pattern: `{EntityName}Configuration.cs` (e.g., `VoiceModelConfiguration.cs`)
+  - Add XML comment indicating the feature: `/// <summary>Entity Framework configuration for {Entity} ({Feature} feature)</summary>`
+  - Configurations are auto-discovered via `ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly)`
 - **Global Filters**: Automatic soft-delete and user ownership filters applied via `ModelBuilderExtensions.ApplyGlobalFilters()`
   - `ISoftDelete`: Entities with `IsDeleted` auto-filtered from queries
   - `IHasUserId`: Entities scoped to current user (unless user is admin)
@@ -79,12 +89,13 @@ lsof -ti:5037 | xargs kill -9
 
 ## Adding a New Feature
 
-1. Create `Features/NewFeature/{Domain,Application,Infrastructure,Presentation}/`
-2. Create `Features/NewFeature/NewFeatureModule.cs` with `AddNewFeature()` extension method
-3. Register services in the module (e.g., `services.AddScoped<INewService, NewService>()`)
-4. Call `builder.Services.AddNewFeature()` in `Program.cs`
-5. Add entity configurations in `Features/NewFeature/Infrastructure/Data/`
-6. DbContext will auto-discover configurations via `ApplyConfigurationsFromAssembly()`
+1. Create `Features/NewFeature/{Domain,Application,Presentation}/` (no Infrastructure folder needed)
+2. Create entity in `Features/NewFeature/Domain/NewEntity.cs`
+3. Create entity configuration in `Shared/Infrastructure/Data/Configurations/NewEntityConfiguration.cs` with XML comment indicating feature
+4. Create `Features/NewFeature/NewFeatureModule.cs` with `AddNewFeature()` extension method
+5. Register services in the module (e.g., `services.AddScoped<INewService, NewService>()`)
+6. Call `builder.Services.AddNewFeature()` in `Program.cs`
+7. DbContext will auto-discover configurations via `ApplyConfigurationsFromAssembly()`
 
 ## Key Files to Reference
 

@@ -6,8 +6,11 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using VoiceByAuribus_API.Features.Voices.Domain;
 
-namespace VoiceByAuribus_API.Features.Voices.Infrastructure.Data;
+namespace VoiceByAuribus_API.Shared.Infrastructure.Data.Configurations;
 
+/// <summary>
+/// Entity Framework configuration for VoiceModel (Voices feature)
+/// </summary>
 public class VoiceModelConfiguration : IEntityTypeConfiguration<VoiceModel>
 {
     public void Configure(EntityTypeBuilder<VoiceModel> builder)

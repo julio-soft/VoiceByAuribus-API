@@ -4,7 +4,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Asp.Versioning;
-using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -12,6 +11,7 @@ using VoiceByAuribus_API.Features.Auth;
 using VoiceByAuribus_API.Features.Voices;
 using VoiceByAuribus_API.Features.Auth.Presentation;
 using VoiceByAuribus_API.Infrastructure.DependencyInjection;
+using VoiceByAuribus_API.Shared.Infrastructure.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,9 +29,6 @@ builder.Services
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
     });
-
-builder.Services.AddFluentValidationAutoValidation();
-builder.Services.AddFluentValidationClientsideAdapters();
 
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
@@ -59,6 +56,9 @@ ConfigureAuthentication(builder);
 ConfigureAuthorization(builder);
 
 var app = builder.Build();
+
+// Global exception handler (must be first)
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {

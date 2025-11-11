@@ -77,7 +77,9 @@ Error responses:
 
 ## Project Structure
 
-- `Domain/`, `Application/`, `Infrastructure/`, `Presentation/`: vertical slices and clean architecture layers.
+- `Features/{FeatureName}/`: Vertical slices containing Domain, Application, and Presentation layers per feature
+- `Shared/`: Cross-cutting concerns including base entities, interfaces, and infrastructure services
+- `Shared/Infrastructure/Data/Configurations/`: All EF Core entity configurations (centralized)
 - `.ai_doc/`: human-authored endpoint narratives.
 
 ## Next Steps

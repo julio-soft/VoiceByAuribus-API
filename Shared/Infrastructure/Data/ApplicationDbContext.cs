@@ -28,7 +28,10 @@ public class ApplicationDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        
+        // Apply all entity configurations from Shared/Infrastructure/Data/Configurations/
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+        
         modelBuilder.ApplyGlobalFilters(_currentUserService);
     }
 
