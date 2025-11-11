@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: voice_by_auribus_api_postgres
+    environment:
+      POSTGRES_DB: voice_by_auribus_api_db
+      POSTGRES_USER: voice_by_auribus_api_user
+      POSTGRES_PASSWORD: voice_by_auribus_api_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - voice_by_auribus_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voice_by_auribus_api_user -d voice_by_auribus_api_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - voice_by_auribus_network
+
+volumes:
+  voice_by_auribus_postgres_data:
+    driver: local
+
+networks:
+  voice_by_auribus_network:
+    driver: bridge

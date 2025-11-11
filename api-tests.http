@@ -1,0 +1,60 @@
+### VoiceByAuribus API - HTTP Client Tests
+### Base URL
+@baseUrl = http://localhost:5037/api/v1
+@cognitoTokenUrl = https://auth.auribus.io/oauth2/token
+@clientId = 1cgn2o0th0qh4av42jcbe4n1g6
+@clientSecret = raenvm9sm56gi3c60j51r6qkgtdm89r0vmn2uar46cq55uu8n09
+
+### Variables for scopes (customize as needed)
+@scope = voice-by-auribus-api/base
+# For admin access use: voice-by-auribus-api/admin
+# For multiple scopes: voice-by-auribus-api/base voice-by-auribus-api/admin
+
+### ============================================
+### Authentication - Get Access Token (M2M)
+### ============================================
+# @name getToken
+POST {{cognitoTokenUrl}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_id={{clientId}}
+&client_secret={{clientSecret}}
+&scope={{scope}}
+
+### Extract tokens from response
+@accessToken = {{getToken.response.body.access_token}}
+@tokenType = {{getToken.response.body.token_type}}
+@expiresIn = {{getToken.response.body.expires_in}}
+
+### ============================================
+### Auth Endpoints
+### ============================================
+
+### Get Current User
+GET {{baseUrl}}/auth/current-user
+Authorization: {{tokenType}} {{accessToken}}
+
+### Get Auth Status
+GET {{baseUrl}}/auth/status
+Authorization: {{tokenType}} {{accessToken}}
+
+### ============================================
+### Voice Model Endpoints
+### ============================================
+
+### Get All Voices
+GET {{baseUrl}}/voices
+Authorization: {{tokenType}} {{accessToken}}
+
+### Get Voice by ID (replace with actual GUID)
+@voiceId = 00000000-0000-0000-0000-000000000000
+GET {{baseUrl}}/voices/{{voiceId}}
+Authorization: {{tokenType}} {{accessToken}}
+
+### ============================================
+### Admin Scope Tests
+### ============================================
+### To test admin endpoints, update @scope variable to:
+### voice-by-auribus-api/admin
+### Then re-run the "Get Access Token" request above
