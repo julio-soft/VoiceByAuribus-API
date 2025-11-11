@@ -5,22 +5,24 @@
 1. **Start PostgreSQL** with Docker Compose:
 
    ```bash
+   cd VoiceByAuribus.API
    docker-compose up -d postgres
    ```
 
-2. **Apply EF Core migrations** (create them first if needed):
+2. **Apply EF Core migrations** (create them first if needed, from solution root):
 
    ```bash
-   dotnet ef migrations add InitialCreate
-   dotnet ef database update
+   cd ..
+   dotnet ef migrations add InitialCreate --project VoiceByAuribus.API/VoiceByAuribus-API.csproj
+   dotnet ef database update --project VoiceByAuribus.API/VoiceByAuribus-API.csproj
    ```
 
-3. **Configure AWS Cognito client secret** in `api-tests.http`:
+3. **Configure AWS Cognito client secret** in `VoiceByAuribus.API/api-tests.http`:
    - Replace `YOUR_CLIENT_SECRET_HERE` with the actual client secret for client ID `1cgn2o0th0qh4av42jcbe4n1g6`.
 
 ## Testing Endpoints
 
-Open `api-tests.http` in VS Code (requires REST Client extension) or use your preferred HTTP client.
+Open `VoiceByAuribus.API/api-tests.http` in VS Code (requires REST Client extension) or use your preferred HTTP client.
 
 ### Authentication Flow
 

@@ -7,7 +7,7 @@
 			"type": "process",
 			"args": [
 				"build",
-				"${workspaceFolder}/VoiceByAuribus-API.csproj",
+				"${workspaceFolder}/VoiceByAuribus.API/VoiceByAuribus-API.csproj",
 				"/property:GenerateFullPaths=true",
 				"/consoleloggerparameters:NoSummary;ForceNoAlign"
 			],
@@ -23,7 +23,7 @@
 			"type": "process",
 			"args": [
 				"publish",
-				"${workspaceFolder}/VoiceByAuribus-API.csproj",
+				"${workspaceFolder}/VoiceByAuribus.API/VoiceByAuribus-API.csproj",
 				"/property:GenerateFullPaths=true",
 				"/consoleloggerparameters:NoSummary;ForceNoAlign"
 			],
@@ -37,7 +37,7 @@
 				"watch",
 				"run",
 				"--project",
-				"${workspaceFolder}/VoiceByAuribus-API.csproj"
+				"${workspaceFolder}/VoiceByAuribus.API/VoiceByAuribus-API.csproj"
 			],
 			"problemMatcher": "$msCompile"
 		}
