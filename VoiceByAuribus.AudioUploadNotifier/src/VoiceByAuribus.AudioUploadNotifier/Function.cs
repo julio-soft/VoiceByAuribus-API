@@ -69,9 +69,25 @@ public class Function
                 var bucketName = s3Event.Bucket.Name;
                 var objectKey = s3Event.Object.Key;
                 var fileSize = s3Event.Object.Size;
+                var eventName = record.EventName;
+
+                // Filter: Only process actual upload completion events
+                if (!IsUploadCompletionEvent(eventName))
+                {
+                    context.Logger.LogInformation($"Skipping event {eventName} for {objectKey} - not an upload completion event");
+                    continue;
+                }
+
+                // Filter: Only process files in the audio-files/*/temp/ path
+                if (!IsValidAudioFilePath(objectKey))
+                {
+                    context.Logger.LogInformation($"Skipping object {objectKey} - not in audio-files/*/temp/ path");
+                    continue;
+                }
+
                 var s3Uri = $"s3://{bucketName}/{objectKey}";
 
-                context.Logger.LogInformation($"Processing upload notification for: {s3Uri} (size: {fileSize} bytes)");
+                context.Logger.LogInformation($"Processing upload notification for: {s3Uri} (size: {fileSize} bytes, event: {eventName})");
 
                 await NotifyBackendAsync(s3Uri, fileSize, context);
 
@@ -87,6 +103,36 @@ public class Function
                 throw;
             }
         }
+    }
+
+    /// <summary>
+    /// Checks if the event is an upload completion event (PUT or CompleteMultipartUpload).
+    /// These events indicate that a file was fully uploaded using a pre-signed URL.
+    /// </summary>
+    /// <param name="eventName">The S3 event name (e.g., "ObjectCreated:Put")</param>
+    /// <returns>True if the event indicates upload completion, false otherwise</returns>
+    private static bool IsUploadCompletionEvent(string eventName)
+    {
+        // Only process events that indicate a completed upload
+        // - s3:ObjectCreated:Put - Direct PUT upload (small files, typical with pre-signed URLs)
+        // - s3:ObjectCreated:CompleteMultipartUpload - Multipart upload completion (large files)
+        return eventName.Contains("ObjectCreated:Put") ||
+               eventName.Contains("ObjectCreated:CompleteMultipartUpload");
+    }
+
+    /// <summary>
+    /// Validates that the object key is in the expected audio-files/{userId}/temp/ path.
+    /// This ensures we only process user-uploaded audio files, not other objects.
+    /// </summary>
+    /// <param name="objectKey">The S3 object key</param>
+    /// <returns>True if the path is valid, false otherwise</returns>
+    private static bool IsValidAudioFilePath(string objectKey)
+    {
+        // Expected format: audio-files/{userId}/temp/{fileId}.{extension}
+        // Example: audio-files/123e4567-e89b-12d3-a456-426614174000/temp/file.mp3
+        // Note: We don't validate file extension here because MIME type is already
+        // validated in the backend API when the user creates the audio file record.
+        return objectKey.StartsWith("audio-files/") && objectKey.Contains("/temp/");
     }
 
     /// <summary>
