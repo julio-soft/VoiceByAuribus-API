@@ -37,5 +37,5 @@ public interface IAudioFileService
     /// <summary>
     /// Handles upload notification from S3 event.
     /// </summary>
-    Task HandleUploadNotificationAsync(string s3Uri);
+    Task HandleUploadNotificationAsync(string s3Uri, long fileSize);
 }

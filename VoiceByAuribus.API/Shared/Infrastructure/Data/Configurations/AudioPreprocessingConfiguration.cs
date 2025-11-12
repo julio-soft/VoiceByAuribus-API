@@ -33,8 +33,7 @@ public class AudioPreprocessingConfiguration : IEntityTypeConfiguration<AudioPre
         builder.Property(x => x.S3UriInference)
             .HasMaxLength(1000);
 
-        builder.Property(x => x.AudioDurationSeconds)
-            .HasPrecision(18, 3);
+        builder.Property(x => x.AudioDurationSeconds);
 
         builder.Property(x => x.ProcessingStartedAt);
 

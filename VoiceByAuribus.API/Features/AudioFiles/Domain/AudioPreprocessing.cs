@@ -38,7 +38,7 @@ public class AudioPreprocessing : BaseAuditableEntity
     /// Duration of the processed audio in seconds.
     /// Null if processing failed or not yet completed.
     /// </summary>
-    public decimal? AudioDurationSeconds { get; set; }
+    public int? AudioDurationSeconds { get; set; }
 
     /// <summary>
     /// Timestamp when preprocessing started.

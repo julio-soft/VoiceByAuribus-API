@@ -19,9 +19,9 @@ public class AudioFile : BaseAuditableEntity, IHasUserId
     public required string FileName { get; set; }
 
     /// <summary>
-    /// File size in bytes.
+    /// File size in bytes. Set when file is uploaded to S3.
     /// </summary>
-    public long FileSize { get; set; }
+    public long? FileSize { get; set; }
 
     /// <summary>
     /// MIME type of the audio file (e.g., "audio/mpeg", "audio/wav").

@@ -25,7 +25,7 @@ public class AudioFileConfiguration : IEntityTypeConfiguration<AudioFile>
             .HasMaxLength(255);
 
         builder.Property(x => x.FileSize)
-            .IsRequired();
+            .IsRequired(false);
 
         builder.Property(x => x.MimeType)
             .IsRequired()

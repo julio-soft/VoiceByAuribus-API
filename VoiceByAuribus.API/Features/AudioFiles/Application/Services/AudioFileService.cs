@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using VoiceByAuribus_API.Features.AudioFiles.Application.Dtos;
+using VoiceByAuribus_API.Features.AudioFiles.Application.Mappers;
 using VoiceByAuribus_API.Features.AudioFiles.Domain;
 using VoiceByAuribus_API.Shared.Infrastructure.Data;
 using VoiceByAuribus_API.Shared.Interfaces;
@@ -31,7 +32,7 @@ public class AudioFileService(
         {
             UserId = userId,
             FileName = dto.FileName,
-            FileSize = dto.FileSize,
+            FileSize = null, // Will be set when file is uploaded
             MimeType = dto.MimeType,
             S3Uri = BuildS3Uri(userId, Guid.NewGuid(), dto.MimeType),
             UploadStatus = UploadStatus.AwaitingUpload
@@ -47,7 +48,6 @@ public class AudioFileService(
         {
             Id = audioFile.Id,
             FileName = audioFile.FileName,
-            FileSize = audioFile.FileSize,
             MimeType = audioFile.MimeType,
             UploadStatus = audioFile.UploadStatus.ToString(),
             UploadUrl = uploadUrl,
@@ -93,7 +93,7 @@ public class AudioFileService(
             return null;
         }
 
-        return MapToResponseDto(audioFile, isAdmin);
+        return AudioFileMapper.MapToResponseDto(audioFile, isAdmin);
     }
 
     public async Task<(AudioFileResponseDto[] Items, int TotalCount)> GetUserAudioFilesAsync(Guid userId, int page, int pageSize)
@@ -111,7 +111,7 @@ public class AudioFileService(
             .Take(pageSize)
             .ToListAsync();
 
-        var items = audioFiles.Select(af => MapToResponseDto(af, false)).ToArray();
+        var items = audioFiles.Select(af => AudioFileMapper.MapToResponseDto(af, false)).ToArray();
 
         return (items, totalCount);
     }
@@ -132,7 +132,7 @@ public class AudioFileService(
         return true;
     }
 
-    public async Task HandleUploadNotificationAsync(string s3Uri)
+    public async Task HandleUploadNotificationAsync(string s3Uri, long fileSize)
     {
         var audioFile = await context.AudioFiles
             .FirstOrDefaultAsync(af => af.S3Uri == s3Uri);
@@ -143,6 +143,7 @@ public class AudioFileService(
         }
 
         audioFile.UploadStatus = UploadStatus.Uploaded;
+        audioFile.FileSize = fileSize;
         await context.SaveChangesAsync();
 
         // Trigger preprocessing
@@ -160,42 +161,6 @@ public class AudioFileService(
         var (bucket, key) = ParseS3Uri(s3Uri);
         var lifetime = TimeSpan.FromMinutes(_uploadExpirationMinutes);
         return presignedUrlService.CreateUploadUrl(bucket, key, lifetime, _maxFileSizeBytes, contentType);
-    }
-
-    private AudioFileResponseDto MapToResponseDto(AudioFile audioFile, bool isAdmin)
-    {
-        var dto = new AudioFileResponseDto
-        {
-            Id = audioFile.Id,
-            FileName = audioFile.FileName,
-            FileSize = audioFile.FileSize,
-            MimeType = audioFile.MimeType,
-            UploadStatus = audioFile.UploadStatus.ToString(),
-            IsProcessed = audioFile.Preprocessing?.ProcessingStatus == ProcessingStatus.Completed,
-            CreatedAt = audioFile.CreatedAt,
-            UpdatedAt = audioFile.UpdatedAt
-        };
-
-        if (isAdmin)
-        {
-            dto.S3Uri = audioFile.S3Uri;
-
-            if (audioFile.Preprocessing is not null)
-            {
-                dto.Preprocessing = new AudioPreprocessingResponseDto
-                {
-                    Status = audioFile.Preprocessing.ProcessingStatus.ToString(),
-                    AudioDurationSeconds = audioFile.Preprocessing.AudioDurationSeconds,
-                    S3UriShort = audioFile.Preprocessing.S3UriShort,
-                    S3UriInference = audioFile.Preprocessing.S3UriInference,
-                    ProcessingStartedAt = audioFile.Preprocessing.ProcessingStartedAt,
-                    ProcessingCompletedAt = audioFile.Preprocessing.ProcessingCompletedAt,
-                    ErrorMessage = audioFile.Preprocessing.ErrorMessage
-                };
-            }
-        }
-
-        return dto;
     }
 
     private static string GetExtensionFromMimeType(string mimeType)

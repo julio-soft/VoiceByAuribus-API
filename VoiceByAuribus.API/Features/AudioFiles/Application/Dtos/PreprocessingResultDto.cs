@@ -6,5 +6,5 @@ namespace VoiceByAuribus_API.Features.AudioFiles.Application.Dtos;
 public class PreprocessingResultDto
 {
     public required string S3KeyTemp { get; set; }
-    public decimal? AudioDuration { get; set; }
+    public int? AudioDuration { get; set; }
 }

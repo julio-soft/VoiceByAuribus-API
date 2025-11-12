@@ -68,11 +68,12 @@ public class Function
             {
                 var bucketName = s3Event.Bucket.Name;
                 var objectKey = s3Event.Object.Key;
+                var fileSize = s3Event.Object.Size;
                 var s3Uri = $"s3://{bucketName}/{objectKey}";
 
-                context.Logger.LogInformation($"Processing upload notification for: {s3Uri}");
+                context.Logger.LogInformation($"Processing upload notification for: {s3Uri} (size: {fileSize} bytes)");
 
-                await NotifyBackendAsync(s3Uri, context);
+                await NotifyBackendAsync(s3Uri, fileSize, context);
 
                 context.Logger.LogInformation($"Successfully notified backend for: {s3Uri}");
             }
@@ -91,11 +92,11 @@ public class Function
     /// <summary>
     /// Sends upload notification to the backend API.
     /// </summary>
-    private async Task NotifyBackendAsync(string s3Uri, ILambdaContext context)
+    private async Task NotifyBackendAsync(string s3Uri, long fileSize, ILambdaContext context)
     {
         var webhookUrl = $"{_apiBaseUrl.TrimEnd('/')}/api/v1/audio-files/webhook/upload-notification";
 
-        var payload = new { s3_uri = s3Uri };
+        var payload = new { s3_uri = s3Uri, file_size = fileSize };
         var jsonContent = JsonSerializer.Serialize(payload, new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower

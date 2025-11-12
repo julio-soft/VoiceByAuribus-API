@@ -10,7 +10,6 @@ public class AudioFileCreatedResponseDto
 {
     public Guid Id { get; set; }
     public required string FileName { get; set; }
-    public long FileSize { get; set; }
     public required string MimeType { get; set; }
     public required string UploadStatus { get; set; }
     public required string UploadUrl { get; set; }

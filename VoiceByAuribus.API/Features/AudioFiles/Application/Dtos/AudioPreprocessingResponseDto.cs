@@ -8,7 +8,7 @@ namespace VoiceByAuribus_API.Features.AudioFiles.Application.Dtos;
 public class AudioPreprocessingResponseDto
 {
     public required string Status { get; set; }
-    public decimal? AudioDurationSeconds { get; set; }
+    public int? AudioDurationSeconds { get; set; }
     public string? S3UriShort { get; set; }
     public string? S3UriInference { get; set; }
     public DateTime? ProcessingStartedAt { get; set; }

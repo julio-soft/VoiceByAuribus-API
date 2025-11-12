@@ -1,0 +1,9 @@
+{
+  "files.exclude": {
+    "**/BuildHost-netcore": true,
+    "**/BuildHost-net472": true,
+    "**/.DS_Store": true
+  },
+  "omnisharp.enableMsBuildLoadProjectsOnDemand": false,
+  "omnisharp.enableEditorConfigSupport": true
+}

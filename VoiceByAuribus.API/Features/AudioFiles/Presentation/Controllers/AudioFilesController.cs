@@ -152,7 +152,7 @@ public class AudioFilesController : BaseController
     {
         try
         {
-            await _audioFileService.HandleUploadNotificationAsync(dto.S3Uri);
+            await _audioFileService.HandleUploadNotificationAsync(dto.S3Uri, dto.FileSize);
             return Success(new { Message = "Upload notification processed successfully" });
         }
         catch (InvalidOperationException ex)

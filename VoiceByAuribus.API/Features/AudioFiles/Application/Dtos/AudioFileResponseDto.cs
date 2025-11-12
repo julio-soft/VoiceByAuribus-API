@@ -9,7 +9,7 @@ public class AudioFileResponseDto
 {
     public Guid Id { get; set; }
     public required string FileName { get; set; }
-    public long FileSize { get; set; }
+    public long? FileSize { get; set; }
     public required string MimeType { get; set; }
     public required string UploadStatus { get; set; }
     public bool IsProcessed { get; set; }
