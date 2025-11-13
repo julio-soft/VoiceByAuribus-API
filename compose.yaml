@@ -1,0 +1,10 @@
+# Please refer https://aka.ms/HTTPSinContainer on how to setup an https developer certificate for your ASP.NET Core service.
+
+services:
+  voicebyauribusapi:
+    image: voicebyauribusapi
+    build:
+      context: .
+      dockerfile: VoiceByAuribus.API/Dockerfile
+    ports:
+      - 5037:5037
