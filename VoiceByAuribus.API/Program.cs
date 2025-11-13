@@ -13,8 +13,13 @@ using VoiceByAuribus_API.Features.AudioFiles;
 using VoiceByAuribus_API.Features.Auth.Presentation;
 using VoiceByAuribus_API.Infrastructure.DependencyInjection;
 using VoiceByAuribus_API.Shared.Infrastructure.Middleware;
+using VoiceByAuribus_API.Shared.Infrastructure.Services;
+using VoiceByAuribus_API.Shared.Infrastructure.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Load secrets from AWS Secrets Manager in production
+LoadSecretsInProduction(builder);
 
 builder.Services.AddAuthFeature();
 builder.Services.AddVoicesFeature();
@@ -75,6 +80,46 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+/// <summary>
+/// Loads secrets from AWS Secrets Manager based on the current environment.
+///
+/// Secret naming convention: voice-by-auribus-api/{environment}
+/// Examples:
+/// - voice-by-auribus-api/production
+/// - voice-by-auribus-api/staging
+/// - voice-by-auribus-api/development (optional)
+///
+/// The secret should contain a JSON object with all sensitive configuration values.
+/// See SECRETS_STRUCTURE.md for the expected JSON format.
+/// </summary>
+static void LoadSecretsInProduction(WebApplicationBuilder builder)
+{
+    var environment = builder.Environment.EnvironmentName.ToLower();
+
+    // In Development, secrets are optional (use appsettings.json)
+    // In Production/Staging, secrets are required
+    var secretsRequired = !builder.Environment.IsDevelopment();
+
+    // Secret name following the convention: voice-by-auribus-api/{environment}
+    var secretId = $"voice-by-auribus-api/{environment}";
+
+    // Load secrets from AWS Secrets Manager
+    builder.Configuration.AddAwsSecretsManager(
+        secretId: secretId,
+        optional: !secretsRequired
+    );
+
+    // Log the configuration source for debugging
+    if (secretsRequired)
+    {
+        Console.WriteLine($"[Secrets Manager] Loading secrets from: {secretId}");
+    }
+    else
+    {
+        Console.WriteLine($"[Secrets Manager] Secrets are optional in Development. Using appsettings.json if secret '{secretId}' is not found.");
+    }
+}
 
 static void ConfigureAuthentication(WebApplicationBuilder builder)
 {

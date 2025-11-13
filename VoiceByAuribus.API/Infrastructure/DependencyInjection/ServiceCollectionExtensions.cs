@@ -1,6 +1,7 @@
 using System;
 using Amazon.Extensions.NETCore.Setup;
 using Amazon.S3;
+using Amazon.SecretsManager;
 using Amazon.SQS;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -25,6 +26,7 @@ public static class ServiceCollectionExtensions
         services.AddDefaultAWSOptions(configuration.GetAWSOptions());
         services.AddAWSService<IAmazonS3>();
         services.AddAWSService<IAmazonSQS>();
+        services.AddAWSService<IAmazonSecretsManager>();
 
         services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
         {
