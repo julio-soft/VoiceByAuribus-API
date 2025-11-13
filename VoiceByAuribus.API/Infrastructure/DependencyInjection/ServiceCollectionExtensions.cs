@@ -20,6 +20,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
         services.AddScoped<IS3PresignedUrlService, S3PresignedUrlService>();
         services.AddSingleton<ISqsService, SqsService>();
+        services.AddScoped<IHealthCheckService, HealthCheckService>();
 
         services.AddDefaultAWSOptions(configuration.GetAWSOptions());
         services.AddAWSService<IAmazonS3>();
