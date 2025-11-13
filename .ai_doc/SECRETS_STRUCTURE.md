@@ -41,18 +41,24 @@ Create a secret in AWS Secrets Manager with the following JSON structure:
 
 ## Configuration Key Mapping
 
-The double underscore (`__`) in secret keys is automatically converted to `:` for ASP.NET Core configuration hierarchy.
+**IMPORTANT**: Use double underscore (`__`) in your secret JSON keys. They are **automatically converted** to colon (`:`) by the configuration provider to match ASP.NET Core's hierarchical configuration format.
 
-| Secret Key | Configuration Access | Description |
-|------------|---------------------|-------------|
-| `ConnectionStrings__DefaultConnection` | `GetConnectionString("DefaultConnection")` | PostgreSQL connection string |
-| `Authentication__Cognito__Region` | `["Authentication:Cognito:Region"]` | AWS Cognito region |
-| `Authentication__Cognito__UserPoolId` | `["Authentication:Cognito:UserPoolId"]` | Cognito User Pool ID |
-| `Authentication__Cognito__Audience` | `["Authentication:Cognito:Audience"]` | API resource server identifier |
-| `AWS__S3__AudioBucketName` | `["AWS:S3:AudioBucketName"]` | S3 bucket for audio files |
-| `AWS__S3__Region` | `["AWS:S3:Region"]` | S3 region |
-| `AWS__SQS__PreprocessingQueueUrl` | `["AWS:SQS:PreprocessingQueueUrl"]` | SQS queue URL |
-| `AWS__SQS__Region` | `["AWS:SQS:Region"]` | SQS region |
+### Why use `__` instead of `:`?
+
+- `__` is a common convention for environment variables (where `:` is not allowed)
+- Our provider automatically converts `__` → `:` for you
+- Works consistently across secrets and environment variables
+
+### Key Conversion Examples
+
+| Secret Key (in JSON) | Converted To | Configuration Access | Description |
+|---------------------|--------------|---------------------|-------------|
+| `ConnectionStrings__DefaultConnection` | `ConnectionStrings:DefaultConnection` | `GetConnectionString("DefaultConnection")` | PostgreSQL connection string |
+| `Authentication__Cognito__Region` | `Authentication:Cognito:Region` | `["Authentication:Cognito:Region"]` | AWS Cognito region |
+| `Authentication__Cognito__UserPoolId` | `Authentication:Cognito:UserPoolId` | `["Authentication:Cognito:UserPoolId"]` | Cognito User Pool ID |
+| `Authentication__Cognito__Audience` | `Authentication:Cognito:Audience` | `["Authentication:Cognito:Audience"]` | API resource server identifier |
+| `AWS__S3__AudioBucketName` | `AWS:S3:AudioBucketName` | `["AWS:S3:AudioBucketName"]` | S3 bucket for audio files |
+| `AWS__SQS__PreprocessingQueueUrl` | `AWS:SQS:PreprocessingQueueUrl` | `["AWS:SQS:PreprocessingQueueUrl"]` | SQS queue URL |
 
 ---
 

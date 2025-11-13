@@ -27,11 +27,15 @@ public class AwsSecretsManagerConfigurationProvider : ConfigurationProvider
 
     public override void Load()
     {
+        // Note: Using GetAwaiter().GetResult() is generally not recommended, but is safe
+        // in the context of application startup before the app is built
         LoadAsync().GetAwaiter().GetResult();
     }
 
     private async Task LoadAsync()
     {
+        var loadedCount = 0;
+
         try
         {
             using var client = _source.SecretsManagerClientFactory?.Invoke()
@@ -41,38 +45,92 @@ public class AwsSecretsManagerConfigurationProvider : ConfigurationProvider
             {
                 try
                 {
+                    LogInformation($"Loading secret: {secretId}");
+
                     var request = new GetSecretValueRequest { SecretId = secretId };
                     var response = await client.GetSecretValueAsync(request);
 
                     if (!string.IsNullOrWhiteSpace(response.SecretString))
                     {
                         ParseSecret(secretId, response.SecretString);
+                        loadedCount++;
+                        LogInformation($"Successfully loaded secret: {secretId}");
+                    }
+                    else
+                    {
+                        LogWarning($"Secret '{secretId}' is empty");
                     }
                 }
                 catch (ResourceNotFoundException)
                 {
-                    _logger?.LogWarning("Secret '{SecretId}' not found in AWS Secrets Manager", secretId);
+                    var message = $"Secret '{secretId}' not found in AWS Secrets Manager";
+                    LogWarning(message);
+
                     if (!_source.Optional)
                     {
-                        throw;
+                        throw new InvalidOperationException(message);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger?.LogError(ex, "Error loading secret '{SecretId}' from AWS Secrets Manager", secretId);
+                    var message = $"Error loading secret '{secretId}' from AWS Secrets Manager: {ex.Message}";
+                    LogError(message, ex);
+
                     if (!_source.Optional)
                     {
                         throw;
                     }
                 }
             }
+
+            if (loadedCount > 0)
+            {
+                LogInformation($"Successfully loaded {loadedCount} secret(s) from AWS Secrets Manager");
+            }
+            else if (_source.SecretIds.Count > 0 && !_source.Optional)
+            {
+                throw new InvalidOperationException("No secrets were loaded and secrets are required");
+            }
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Error initializing AWS Secrets Manager client");
+            var message = "Error initializing AWS Secrets Manager client";
+            LogError(message, ex);
+
             if (!_source.Optional)
             {
                 throw;
+            }
+        }
+    }
+
+    private void LogInformation(string message)
+    {
+        _logger?.LogInformation(message);
+        if (_logger == null && _source.EnableConsoleLogging)
+        {
+            Console.WriteLine($"[Secrets Manager] {message}");
+        }
+    }
+
+    private void LogWarning(string message)
+    {
+        _logger?.LogWarning(message);
+        if (_logger == null && _source.EnableConsoleLogging)
+        {
+            Console.WriteLine($"[Secrets Manager WARNING] {message}");
+        }
+    }
+
+    private void LogError(string message, Exception? ex = null)
+    {
+        _logger?.LogError(ex, message);
+        if (_logger == null && _source.EnableConsoleLogging)
+        {
+            Console.WriteLine($"[Secrets Manager ERROR] {message}");
+            if (ex != null)
+            {
+                Console.WriteLine($"[Secrets Manager ERROR] Exception: {ex.GetType().Name}: {ex.Message}");
             }
         }
     }
@@ -88,9 +146,13 @@ public class AwsSecretsManagerConfigurationProvider : ConfigurationProvider
             {
                 foreach (var kvp in secretData)
                 {
+                    // Convert double underscore (__) to colon (:) for ASP.NET Core Configuration hierarchy
+                    // Example: "ConnectionStrings__DefaultConnection" -> "ConnectionStrings:DefaultConnection"
+                    var normalizedKey = kvp.Key.Replace("__", ":");
+
                     var key = _source.KeyPrefix != null
-                        ? $"{_source.KeyPrefix}:{kvp.Key}"
-                        : kvp.Key;
+                        ? $"{_source.KeyPrefix}:{normalizedKey}"
+                        : normalizedKey;
 
                     var value = kvp.Value.ValueKind == JsonValueKind.String
                         ? kvp.Value.GetString()

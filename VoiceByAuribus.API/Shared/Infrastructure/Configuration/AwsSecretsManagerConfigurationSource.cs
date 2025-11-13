@@ -36,6 +36,11 @@ public class AwsSecretsManagerConfigurationSource : IConfigurationSource
     /// </summary>
     public ILogger? Logger { get; set; }
 
+    /// <summary>
+    /// Enable console logging when ILogger is not available (default: true)
+    /// </summary>
+    public bool EnableConsoleLogging { get; set; } = true;
+
     public IConfigurationProvider Build(IConfigurationBuilder builder)
     {
         return new AwsSecretsManagerConfigurationProvider(this, Logger);

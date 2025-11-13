@@ -105,20 +105,11 @@ static void LoadSecretsInProduction(WebApplicationBuilder builder)
     var secretId = $"voice-by-auribus-api/{environment}";
 
     // Load secrets from AWS Secrets Manager
+    // The provider will automatically log to console during startup
     builder.Configuration.AddAwsSecretsManager(
         secretId: secretId,
         optional: !secretsRequired
     );
-
-    // Log the configuration source for debugging
-    if (secretsRequired)
-    {
-        Console.WriteLine($"[Secrets Manager] Loading secrets from: {secretId}");
-    }
-    else
-    {
-        Console.WriteLine($"[Secrets Manager] Secrets are optional in Development. Using appsettings.json if secret '{secretId}' is not found.");
-    }
 }
 
 static void ConfigureAuthentication(WebApplicationBuilder builder)
