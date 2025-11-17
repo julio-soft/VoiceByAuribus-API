@@ -110,11 +110,28 @@ app.UseAuthorization();
 app.UseSerilogRequestLogging(options =>
 {
     options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000}ms";
+    options.GetLevel = (httpContext, elapsed, ex) => 
+    {
+        if (ex != null || httpContext.Response.StatusCode >= 500)
+            return Serilog.Events.LogEventLevel.Error;
+        if (httpContext.Response.StatusCode >= 400)
+            return Serilog.Events.LogEventLevel.Warning;
+        return Serilog.Events.LogEventLevel.Information;
+    };
     options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
     {
-        diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
-        diagnosticContext.Set("UserAgent", httpContext.Request.Headers["User-Agent"].ToString());
-        diagnosticContext.Set("RemoteIP", httpContext.Connection.RemoteIpAddress);
+        diagnosticContext.Set("RemoteIP", httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown");
+        diagnosticContext.Set("UserId", httpContext.User?.FindFirst("sub")?.Value ?? "anonymous");
+        
+        // Solo incluir UserAgent si es útil (no en health checks)
+        if (!httpContext.Request.Path.StartsWithSegments("/health"))
+        {
+            var userAgent = httpContext.Request.Headers["User-Agent"].ToString();
+            if (!string.IsNullOrEmpty(userAgent) && userAgent.Length < 200)
+            {
+                diagnosticContext.Set("UserAgent", userAgent);
+            }
+        }
     };
 });
 
