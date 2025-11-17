@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Amazon.S3;
 using Amazon.SQS;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using VoiceByAuribus_API.Shared.Application.Dtos;
 using VoiceByAuribus_API.Shared.Infrastructure.Data;
@@ -21,17 +22,26 @@ public class HealthCheckService : IHealthCheckService
     private readonly IAmazonS3 _s3Client;
     private readonly IAmazonSQS _sqsClient;
     private readonly ILogger<HealthCheckService> _logger;
+    private readonly string _audioBucket;
+    private readonly string _audioPreprocessingQueue;
 
     public HealthCheckService(
         ApplicationDbContext dbContext,
         IAmazonS3 s3Client,
         IAmazonSQS sqsClient,
-        ILogger<HealthCheckService> logger)
+        ILogger<HealthCheckService> logger,
+        IConfiguration configuration)
     {
         _dbContext = dbContext;
         _s3Client = s3Client;
         _sqsClient = sqsClient;
         _logger = logger;
+
+        _audioBucket = configuration["AWS:S3:AudioFilesBucket"]
+            ?? throw new InvalidOperationException("AWS:S3:AudioFilesBucket configuration is required");
+
+        _audioPreprocessingQueue = configuration["AWS:SQS:AudioPreprocessingQueue"]
+            ?? throw new InvalidOperationException("AWS:SQS:AudioPreprocessingQueue configuration is required");
     }
 
     public async Task<HealthCheckResponse> CheckHealthAsync()
@@ -101,8 +111,8 @@ public class HealthCheckService : IHealthCheckService
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            // Quick check to list buckets (minimal operation)
-            await _s3Client.ListBucketsAsync();
+            // Check specific bucket access (requires only s3:GetBucketLocation permission)
+            await _s3Client.GetBucketLocationAsync(_audioBucket);
             stopwatch.Stop();
 
             return new ServiceHealthStatus
@@ -129,8 +139,8 @@ public class HealthCheckService : IHealthCheckService
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            // Quick check to list queues (minimal operation)
-            await _sqsClient.ListQueuesAsync(string.Empty);
+            // Check specific queue access (requires only sqs:GetQueueUrl permission)
+            await _sqsClient.GetQueueUrlAsync(_audioPreprocessingQueue);
             stopwatch.Stop();
 
             return new ServiceHealthStatus
