@@ -9,7 +9,6 @@ on:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: voice-by-auribus-api
-  IMAGE_TAG: simplified
 
 jobs:
   build-and-push:
@@ -36,19 +35,26 @@ jobs:
       - name: Build and push Docker image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: sha-${{ github.sha }}
         run: |
+          # Extract short SHA (first 7 characters)
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+
           docker buildx build \
             --platform linux/amd64 \
             --file VoiceByAuribus.API/Dockerfile.apprunner \
-            --tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
             --tag $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY:sha-${SHORT_SHA} \
             --push \
             .
+
+          echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
 
       - name: Output image URI
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           echo "Image pushed successfully!"
-          echo "Image URI: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-          echo "Latest URI: $ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          echo "Latest: $ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          echo "SHA: $ECR_REGISTRY/$ECR_REPOSITORY:sha-${{ env.SHORT_SHA }}"
+          echo "Commit: ${{ github.sha }}"
