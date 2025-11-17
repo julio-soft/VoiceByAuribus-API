@@ -18,14 +18,16 @@ public static class ConfigurationBuilderExtensions
     /// <param name="secretId">The secret ID to load</param>
     /// <param name="optional">If true, missing secrets won't throw exceptions</param>
     /// <param name="keyPrefix">Optional prefix to add to all configuration keys</param>
+    /// <param name="region">AWS Region (e.g., "us-east-1"). If not specified, uses AWS SDK default region discovery</param>
     /// <returns>The configuration builder for chaining</returns>
     public static IConfigurationBuilder AddAwsSecretsManager(
         this IConfigurationBuilder builder,
         string secretId,
         bool optional = false,
-        string? keyPrefix = null)
+        string? keyPrefix = null,
+        string? region = null)
     {
-        return builder.AddAwsSecretsManager(new[] { secretId }, optional, keyPrefix);
+        return builder.AddAwsSecretsManager(new[] { secretId }, optional, keyPrefix, region);
     }
 
     /// <summary>
@@ -35,18 +37,21 @@ public static class ConfigurationBuilderExtensions
     /// <param name="secretIds">The secret IDs to load</param>
     /// <param name="optional">If true, missing secrets won't throw exceptions</param>
     /// <param name="keyPrefix">Optional prefix to add to all configuration keys</param>
+    /// <param name="region">AWS Region (e.g., "us-east-1"). If not specified, uses AWS SDK default region discovery</param>
     /// <returns>The configuration builder for chaining</returns>
     public static IConfigurationBuilder AddAwsSecretsManager(
         this IConfigurationBuilder builder,
         IEnumerable<string> secretIds,
         bool optional = false,
-        string? keyPrefix = null)
+        string? keyPrefix = null,
+        string? region = null)
     {
         return builder.AddAwsSecretsManager(source =>
         {
             source.SecretIds.AddRange(secretIds);
             source.Optional = optional;
             source.KeyPrefix = keyPrefix;
+            source.Region = region;
         });
     }
 

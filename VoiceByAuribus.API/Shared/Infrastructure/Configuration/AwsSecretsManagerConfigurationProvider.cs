@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Amazon;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using Microsoft.Extensions.Configuration;
@@ -35,66 +36,104 @@ public class AwsSecretsManagerConfigurationProvider : ConfigurationProvider
     private async Task LoadAsync()
     {
         var loadedCount = 0;
+        const int maxRetries = 5;
+        const int initialDelayMs = 1000; // 1 second
 
         try
         {
-            using var client = _source.SecretsManagerClientFactory?.Invoke()
-                ?? new AmazonSecretsManagerClient();
-
-            foreach (var secretId in _source.SecretIds)
+            // Retry logic for App Runner - credentials may take a few seconds to be available
+            for (int attempt = 0; attempt < maxRetries; attempt++)
             {
                 try
                 {
-                    LogInformation($"Loading secret: {secretId}");
-
-                    var request = new GetSecretValueRequest { SecretId = secretId };
-                    var response = await client.GetSecretValueAsync(request);
-
-                    if (!string.IsNullOrWhiteSpace(response.SecretString))
+                    if (attempt > 0)
                     {
-                        ParseSecret(secretId, response.SecretString);
-                        loadedCount++;
-                        LogInformation($"Successfully loaded secret: {secretId}");
+                        var delayMs = initialDelayMs * (int)Math.Pow(2, attempt - 1); // Exponential backoff
+                        LogInformation($"Retrying to load secrets (attempt {attempt + 1}/{maxRetries}) after {delayMs}ms...");
+                        await Task.Delay(delayMs);
                     }
-                    else
-                    {
-                        LogWarning($"Secret '{secretId}' is empty");
-                    }
-                }
-                catch (ResourceNotFoundException)
-                {
-                    var message = $"Secret '{secretId}' not found in AWS Secrets Manager";
-                    LogWarning(message);
 
-                    if (!_source.Optional)
+                    using var client = _source.SecretsManagerClientFactory?.Invoke()
+                        ?? CreateSecretsManagerClient();
+
+                    foreach (var secretId in _source.SecretIds)
                     {
-                        throw new InvalidOperationException(message);
+                        try
+                        {
+                            LogInformation($"Loading secret: {secretId}");
+
+                            var request = new GetSecretValueRequest { SecretId = secretId };
+                            var response = await client.GetSecretValueAsync(request);
+
+                            if (!string.IsNullOrWhiteSpace(response.SecretString))
+                            {
+                                ParseSecret(secretId, response.SecretString);
+                                loadedCount++;
+                                LogInformation($"Successfully loaded secret: {secretId}");
+                            }
+                            else
+                            {
+                                LogWarning($"Secret '{secretId}' is empty");
+                            }
+                        }
+                        catch (ResourceNotFoundException)
+                        {
+                            var message = $"Secret '{secretId}' not found in AWS Secrets Manager";
+                            LogWarning(message);
+
+                            if (!_source.Optional)
+                            {
+                                throw new InvalidOperationException(message);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            var message = $"Error loading secret '{secretId}' from AWS Secrets Manager: {ex.Message}";
+                            LogError(message, ex);
+
+                            if (!_source.Optional)
+                            {
+                                throw;
+                            }
+                        }
+                    }
+
+                    if (loadedCount > 0)
+                    {
+                        LogInformation($"Successfully loaded {loadedCount} secret(s) from AWS Secrets Manager");
+                        break; // Success - exit retry loop
+                    }
+                    else if (_source.SecretIds.Count > 0 && !_source.Optional)
+                    {
+                        throw new InvalidOperationException("No secrets were loaded and secrets are required");
                     }
                 }
                 catch (Exception ex)
                 {
-                    var message = $"Error loading secret '{secretId}' from AWS Secrets Manager: {ex.Message}";
-                    LogError(message, ex);
+                    var isLastAttempt = attempt == maxRetries - 1;
+                    var message = $"Error initializing AWS Secrets Manager client (attempt {attempt + 1}/{maxRetries}): {ex.Message}";
 
-                    if (!_source.Optional)
+                    if (isLastAttempt)
                     {
-                        throw;
+                        LogError(message, ex);
+                        LogError("CRITICAL: Failed to load secrets after all retry attempts", ex);
+
+                        if (!_source.Optional)
+                        {
+                            throw;
+                        }
+                    }
+                    else
+                    {
+                        LogWarning(message);
+                        // Continue to next retry
                     }
                 }
-            }
-
-            if (loadedCount > 0)
-            {
-                LogInformation($"Successfully loaded {loadedCount} secret(s) from AWS Secrets Manager");
-            }
-            else if (_source.SecretIds.Count > 0 && !_source.Optional)
-            {
-                throw new InvalidOperationException("No secrets were loaded and secrets are required");
             }
         }
         catch (Exception ex)
         {
-            var message = "Error initializing AWS Secrets Manager client";
+            var message = "CRITICAL: Fatal error loading secrets from AWS Secrets Manager";
             LogError(message, ex);
 
             if (!_source.Optional)
@@ -110,6 +149,7 @@ public class AwsSecretsManagerConfigurationProvider : ConfigurationProvider
         if (_logger == null && _source.EnableConsoleLogging)
         {
             Console.WriteLine($"[Secrets Manager] {message}");
+            Console.Out.Flush();
         }
     }
 
@@ -119,6 +159,7 @@ public class AwsSecretsManagerConfigurationProvider : ConfigurationProvider
         if (_logger == null && _source.EnableConsoleLogging)
         {
             Console.WriteLine($"[Secrets Manager WARNING] {message}");
+            Console.Out.Flush();
         }
     }
 
@@ -132,7 +173,21 @@ public class AwsSecretsManagerConfigurationProvider : ConfigurationProvider
             {
                 Console.WriteLine($"[Secrets Manager ERROR] Exception: {ex.GetType().Name}: {ex.Message}");
             }
+            Console.Out.Flush();
         }
+    }
+
+    private IAmazonSecretsManager CreateSecretsManagerClient()
+    {
+        if (!string.IsNullOrWhiteSpace(_source.Region))
+        {
+            var regionEndpoint = RegionEndpoint.GetBySystemName(_source.Region);
+            LogInformation($"Creating Secrets Manager client for region: {_source.Region}");
+            return new AmazonSecretsManagerClient(regionEndpoint);
+        }
+
+        LogInformation("Creating Secrets Manager client with default configuration");
+        return new AmazonSecretsManagerClient();
     }
 
     private void ParseSecret(string secretId, string secretString)

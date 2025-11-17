@@ -1,0 +1,109 @@
+# ==============================================================================
+# Dockerfile optimizado para AWS App Runner
+# Proyecto: VoiceByAuribus API (.NET 10)
+# ==============================================================================
+# IMPORTANTE: Este Dockerfile está configurado específicamente para App Runner
+# - Puerto 8080 (requerido por App Runner)
+# - Health check en /api/v1/health
+# - Multi-stage build para optimizar tamaño de imagen
+# - Ejecuta como usuario no-root para seguridad
+# ==============================================================================
+
+# ==============================================================================
+# STAGE 1: Runtime Base Image
+# ==============================================================================
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+WORKDIR /app
+
+# App Runner espera que el contenedor escuche en puerto 8080
+# Este es el estándar de la industria y App Runner lo mapea automáticamente a HTTPS (443)
+EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:8080
+
+# Configuración adicional para producción
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV DOTNET_RUNNING_IN_CONTAINER=true
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
+
+# Ejecutar como usuario no-root (mejora seguridad)
+# La imagen aspnet:10.0 incluye el usuario 'app' (UID 1654)
+# USER app  # Comentado temporalmente - debugging App Runner issue
+
+# ==============================================================================
+# STAGE 2: Build & Restore Dependencies
+# ==============================================================================
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ARG configuration=Release
+WORKDIR /src
+
+# Copiar solo archivos de proyecto primero (mejor caching de layers)
+COPY ["VoiceByAuribus.API/VoiceByAuribus-API.csproj", "VoiceByAuribus.API/"]
+
+# Restore de dependencias (se cachea si no cambian los .csproj)
+RUN dotnet restore "VoiceByAuribus.API/VoiceByAuribus-API.csproj"
+
+# Copiar todo el código fuente
+COPY . .
+
+# Build de la aplicación
+WORKDIR "/src/VoiceByAuribus.API"
+RUN dotnet build "VoiceByAuribus-API.csproj" \
+    -c $configuration \
+    -o /app/build \
+    --no-restore
+
+# ==============================================================================
+# STAGE 3: Publish
+# ==============================================================================
+FROM build AS publish
+ARG configuration=Release
+
+# IMPORTANTE: No usar --no-build aquí para evitar problemas con runtimeconfig.json
+# El overhead de rebuild es mínimo comparado con la confiabilidad
+RUN dotnet publish "VoiceByAuribus-API.csproj" \
+    -c $configuration \
+    -o /app/publish \
+    /p:UseAppHost=false \
+    --no-restore
+
+# ==============================================================================
+# STAGE 4: Final Image
+# ==============================================================================
+FROM base AS final
+WORKDIR /app
+
+# Copiar los binarios publicados del stage anterior
+COPY --from=publish /app/publish .
+
+# NOTA: No incluimos HEALTHCHECK en el Dockerfile porque:
+# 1. App Runner tiene su propio sistema de health checks (configurado en el servicio)
+# 2. La imagen base de .NET no incluye curl por defecto
+# 3. Es más simple y confiable usar el health check nativo de App Runner
+# Configuración del health check se hace en el JSON del servicio de App Runner
+
+# Labels para metadata (opcional pero recomendado)
+LABEL maintainer="VoiceByAuribus Team"
+LABEL description="VoiceByAuribus API - .NET 10 ASP.NET Core Web API"
+LABEL version="1.0.0"
+
+# Entrypoint - Inicia la aplicación
+ENTRYPOINT ["dotnet", "VoiceByAuribus-API.dll"]
+
+# ==============================================================================
+# NOTAS DE USO:
+# ==============================================================================
+# Build:
+#   docker build -f Dockerfile.apprunner -t voice-by-auribus-api:latest .
+#
+# Run local (testing):
+#   docker run -p 8080:8080 voice-by-auribus-api:latest
+#   curl http://localhost:8080/api/v1/health
+#
+# Push to ECR:
+#   aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <ECR_URI>
+#   docker tag voice-by-auribus-api:latest <ECR_URI>:latest
+#   docker push <ECR_URI>:latest
+#
+# Deploy to App Runner:
+#   aws apprunner start-deployment --service-arn <SERVICE_ARN> --region us-east-1
+# ==============================================================================

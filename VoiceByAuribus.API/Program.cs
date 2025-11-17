@@ -16,15 +16,28 @@ using VoiceByAuribus_API.Shared.Infrastructure.Middleware;
 using VoiceByAuribus_API.Shared.Infrastructure.Services;
 using VoiceByAuribus_API.Shared.Infrastructure.Configuration;
 
+Console.WriteLine($"[STARTUP] Starting VoiceByAuribus API");
+Console.WriteLine($"[STARTUP] Environment: {Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}");
+Console.Out.Flush();
+
 var builder = WebApplication.CreateBuilder(args);
+
+Console.WriteLine("[STARTUP] WebApplicationBuilder created");
+Console.Out.Flush();
 
 // Load secrets from AWS Secrets Manager in production
 LoadSecretsInProduction(builder);
+
+Console.WriteLine("[STARTUP] Loading features...");
+Console.Out.Flush();
 
 builder.Services.AddAuthFeature();
 builder.Services.AddVoicesFeature();
 builder.Services.AddAudioFilesFeature();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+Console.WriteLine("[STARTUP] Features loaded successfully");
+Console.Out.Flush();
 
 builder.Services
     .AddControllers(options =>
@@ -41,6 +54,9 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
     options.SuppressModelStateInvalidFilter = true;
 });
+
+Console.WriteLine("[STARTUP] Configuring API versioning...");
+Console.Out.Flush();
 
 builder.Services.AddApiVersioning(options =>
     {
@@ -59,10 +75,19 @@ builder.Services.AddApiVersioning(options =>
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 
+Console.WriteLine("[STARTUP] Configuring authentication and authorization...");
+Console.Out.Flush();
+
 ConfigureAuthentication(builder);
 ConfigureAuthorization(builder);
 
+Console.WriteLine("[STARTUP] Building application...");
+Console.Out.Flush();
+
 var app = builder.Build();
+
+Console.WriteLine("[STARTUP] Application built successfully");
+Console.Out.Flush();
 
 // Global exception handler (must be first)
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
@@ -79,7 +104,13 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+Console.WriteLine("[STARTUP] Middleware configured, starting application...");
+Console.Out.Flush();
+
 app.Run();
+
+Console.WriteLine("[STARTUP] Application stopped");  // This won't be reached during normal operation
+Console.Out.Flush();
 
 /// <summary>
 /// Loads secrets from AWS Secrets Manager based on the current environment.
@@ -104,12 +135,23 @@ static void LoadSecretsInProduction(WebApplicationBuilder builder)
     // Secret name following the convention: voice-by-auribus-api/{environment}
     var secretId = $"voice-by-auribus-api/{environment}";
 
+    // Get AWS region from environment variable (set by App Runner/ECS) or fallback to us-east-1
+    var awsRegion = Environment.GetEnvironmentVariable("AWS_REGION")
+        ?? Environment.GetEnvironmentVariable("AWS_DEFAULT_REGION")
+        ?? "us-east-1";
+
     // Load secrets from AWS Secrets Manager
     // The provider will automatically log to console during startup
+    // TEMPORARILY set to optional to see logs and diagnose the real issue
     builder.Configuration.AddAwsSecretsManager(
         secretId: secretId,
-        optional: !secretsRequired
+        optional: true,  // TEMPORARY: Set to true to allow container to start and see logs
+        keyPrefix: null,
+        region: awsRegion
     );
+
+    Console.WriteLine($"[STARTUP] Secrets loading completed (optional=true for debugging)");
+    Console.Out.Flush();
 }
 
 static void ConfigureAuthentication(WebApplicationBuilder builder)

@@ -41,6 +41,12 @@ public class AwsSecretsManagerConfigurationSource : IConfigurationSource
     /// </summary>
     public bool EnableConsoleLogging { get; set; } = true;
 
+    /// <summary>
+    /// AWS Region where Secrets Manager is located (e.g., "us-east-1")
+    /// If not specified, will use default AWS SDK credential chain region discovery
+    /// </summary>
+    public string? Region { get; set; }
+
     public IConfigurationProvider Build(IConfigurationBuilder builder)
     {
         return new AwsSecretsManagerConfigurationProvider(this, Logger);
