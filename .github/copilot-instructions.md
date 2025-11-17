@@ -115,11 +115,21 @@ dotnet test VoiceByAuribus-API.sln
 
 - **JSON**: `snake_case_lower` via `JsonNamingPolicy.SnakeCaseLower` in `Program.cs`
 - **API Versioning**: URL-based (e.g., `/api/v1/auth/status`), configured with `Asp.Versioning`
-- **Validation**: FluentValidation with `ValidationFilter` (returns 400 with `ValidationProblemDetails`)
+- **Validation**: 
+  - **Data Annotations**: Use for simple validations (required, length, regex)
+  - **FluentValidation**: Use ONLY for complex validations (cross-property, async, conditional, dependency injection)
+  - `ValidationFilter` returns 400 with `ValidationProblemDetails`
 - **Namespaces**: Match folder structure: `VoiceByAuribus_API.Features.{Feature}.{Layer}`
 - **Documentation**: Endpoint docs in `.ai_doc/v1/`, no markdown outside `.github/` or `.ai_doc/`
 - **API Response**: All endpoints use `ApiResponse<T>` wrapper with `success`, `message`, `data`, and `errors` fields
 - **Controllers**: Inherit from `BaseController` in `Shared/Infrastructure/Controllers/` for standardized responses and current user access
+- **Async Patterns**: All I/O operations must be async, methods end with `Async`, return `Task<T>` or `Task`
+- **Naming Conventions**:
+  - **C# Code**: PascalCase for classes/methods/properties, _camelCase for private fields, camelCase for parameters
+  - **Database Tables**: snake_case plural (e.g., `audio_files`, `voice_models`)
+  - **API Routes**: kebab-case (e.g., `/api/v1/audio-files`)
+  - **Enums**: Convert to strings in DTOs and database (via `.HasConversion<string>()`)
+- **XML Documentation**: Required for all public classes, methods, and properties
 
 ## Solution Structure
 
@@ -169,3 +179,183 @@ To test all projects: `dotnet test VoiceByAuribus-API.sln`
 - **API Response**: `Shared/Domain/ApiResponse.cs` - standardized response wrapper for all endpoints
 - **Webhook Auth**: `Shared/Infrastructure/Filters/WebhookAuthenticationAttribute.cs` - validates `X-Webhook-Api-Key` header
 - **Lambda Function**: `VoiceByAuribus.AudioUploadNotifier/src/VoiceByAuribus.AudioUploadNotifier/Function.cs`
+
+## Coding Patterns
+
+### Services: Primary Constructor Pattern
+Services use primary constructor with dependency injection:
+```csharp
+public class AudioFileService(
+    ApplicationDbContext context,
+    IS3PresignedUrlService presignedUrlService,
+    IDateTimeProvider dateTimeProvider) : IAudioFileService
+{
+    // Constructor parameters auto-assigned as fields
+    // No need for manual field declarations
+    
+    // Extract configuration in constructor
+    private readonly string _audioBucket = configuration["AWS:S3:AudioFilesBucket"]
+        ?? throw new InvalidOperationException("AWS:S3:AudioFilesBucket configuration is required");
+}
+```
+
+### Mappers: Static Classes Pattern
+Mappers MUST be static classes in separate files at `Features/{Feature}/Application/Mappers/`:
+```csharp
+/// <summary>Mapper for AudioFile entity to DTOs.</summary>
+public static class AudioFileMapper
+{
+    /// <summary>Maps AudioFile entity to AudioFileResponseDto.</summary>
+    /// <param name="audioFile">The audio file entity to map</param>
+    /// <param name="isAdmin">Whether the current user is an admin</param>
+    public static AudioFileResponseDto MapToResponseDto(AudioFile audioFile, bool isAdmin)
+    {
+        var dto = new AudioFileResponseDto { /* mapping */ };
+        
+        // Admin-specific data conditionally included
+        if (isAdmin)
+        {
+            dto.S3Uri = audioFile.S3Uri;
+            dto.Preprocessing = AudioPreprocessingMapper.MapToResponseDto(audioFile.Preprocessing);
+        }
+        
+        return dto;
+    }
+}
+```
+**Rules**: Static methods, XML documentation, admin data via `isAdmin` parameter, call other mappers for nested entities, no business logic
+
+### Entities: Base Classes and Interfaces
+```csharp
+/// <summary>Represents an audio file uploaded by a user.</summary>
+public class AudioFile : BaseAuditableEntity, IHasUserId, ISoftDelete
+{
+    public Guid? UserId { get; set; }  // IHasUserId: automatic user-scoped filtering
+    public required string FileName { get; set; }
+    public bool IsDeleted { get; set; }  // ISoftDelete: automatic soft-delete filtering
+    // BaseAuditableEntity provides: Id, CreatedAt, UpdatedAt (automatic timestamps)
+}
+```
+
+### EF Core Configurations
+Entity configurations MUST be in `Shared/Infrastructure/Data/Configurations/`:
+```csharp
+/// <summary>Entity Framework configuration for AudioFile (AudioFiles feature).</summary>
+public class AudioFileConfiguration : IEntityTypeConfiguration<AudioFile>
+{
+    public void Configure(EntityTypeBuilder<AudioFile> builder)
+    {
+        builder.ToTable("audio_files");  // snake_case table name
+        
+        builder.Property(x => x.FileName)
+            .IsRequired()
+            .HasMaxLength(255);
+        
+        builder.Property(x => x.UploadStatus)
+            .IsRequired()
+            .HasConversion<string>();  // Convert enums to strings
+        
+        // Add indexes for FK and frequently queried fields
+        builder.HasIndex(x => x.UserId);
+        builder.HasIndex(x => x.S3Uri).IsUnique();
+    }
+}
+```
+**Rules**: Snake_case table names, convert enums to strings, add indexes for FKs and query fields, specify max lengths
+
+### Controllers: Standardized Responses
+```csharp
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/audio-files")]
+public class AudioFilesController(
+    IAudioFileService audioFileService,
+    ICurrentUserService currentUserService) : BaseController
+{
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<AudioFileResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetAudioFile([FromRoute] Guid id)
+    {
+        var userId = currentUserService.GetUserId();
+        var isAdmin = currentUserService.IsAdmin;
+        var audioFile = await audioFileService.GetAudioFileByIdAsync(id, userId, isAdmin);
+        
+        if (audioFile is null)
+            return NotFound<AudioFileResponseDto>("Audio file not found");
+        
+        return Success(audioFile);
+    }
+}
+```
+
+## Security & Error Handling
+
+### User Ownership Filtering
+Always filter by `UserId` for user-owned resources (global filter applies automatically via `IHasUserId`):
+```csharp
+// Global filter ensures user isolation, but explicit checks recommended
+var audioFile = await context.AudioFiles
+    .FirstOrDefaultAsync(af => af.Id == id && af.UserId == userId);
+```
+
+### Admin-Only Data
+Use `isAdmin` parameter to conditionally expose sensitive data (S3 URIs, preprocessing details):
+```csharp
+if (isAdmin)
+{
+    dto.S3Uri = audioFile.S3Uri;
+    dto.Preprocessing = /* preprocessing details */;
+}
+```
+
+### Error Handling Pattern
+- Services return `null` for not found items
+- Services throw exceptions for invalid operations
+- Controllers convert `null` to 404 responses
+- Global exception handler (`GlobalExceptionHandlerMiddleware`) catches unhandled exceptions
+
+```csharp
+// Service layer
+public async Task<AudioFileResponseDto?> GetByIdAsync(Guid id, Guid userId)
+{
+    var audioFile = await context.AudioFiles
+        .AsNoTracking()  // Use for read-only queries
+        .FirstOrDefaultAsync(af => af.Id == id && af.UserId == userId);
+    
+    return audioFile is null ? null : AudioFileMapper.MapToResponseDto(audioFile, false);
+}
+
+// Controller layer
+[HttpGet("{id:guid}")]
+public async Task<IActionResult> GetAudioFile([FromRoute] Guid id)
+{
+    var audioFile = await audioFileService.GetByIdAsync(id, userId);
+    if (audioFile is null)
+        return NotFound<AudioFileResponseDto>("Audio file not found");
+    
+    return Success(audioFile);
+}
+```
+
+## Testing Patterns
+
+### Unit Tests
+```csharp
+[Fact]
+public async Task CreateAudioFileAsync_WithValidData_ReturnsCreatedResponse()
+{
+    // Arrange
+    var dto = new CreateAudioFileDto { FileName = "test.mp3", MimeType = "audio/mpeg" };
+    var userId = Guid.NewGuid();
+    
+    // Act
+    var result = await _audioFileService.CreateAudioFileAsync(dto, userId);
+    
+    // Assert
+    Assert.NotNull(result);
+    Assert.Equal(dto.FileName, result.FileName);
+}
+```
+
+### Integration Tests
+Use `WebApplicationFactory<Program>` for end-to-end endpoint testing with in-memory or test database
