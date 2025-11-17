@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using VoiceByAuribus_API.Features.AudioFiles.Application.Dtos;
 using VoiceByAuribus_API.Features.AudioFiles.Application.Services;
 using VoiceByAuribus_API.Features.Auth.Presentation;
@@ -19,15 +20,18 @@ public class AudioFilesController : BaseController
 {
     private readonly IAudioFileService _audioFileService;
     private readonly IAudioPreprocessingService _preprocessingService;
+    private readonly ILogger<AudioFilesController> _logger;
 
     public AudioFilesController(
         ICurrentUserService currentUserService,
         IAudioFileService audioFileService,
-        IAudioPreprocessingService preprocessingService)
+        IAudioPreprocessingService preprocessingService,
+        ILogger<AudioFilesController> logger)
         : base(currentUserService)
     {
         _audioFileService = audioFileService;
         _preprocessingService = preprocessingService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -41,6 +45,10 @@ public class AudioFilesController : BaseController
     public async Task<IActionResult> CreateAudioFileAsync([FromBody] CreateAudioFileDto dto)
     {
         var userId = GetUserId();
+        _logger.LogInformation(
+            "[API] POST /audio-files - UserId={UserId}, FileName={FileName}",
+            userId, dto.FileName);
+        
         var response = await _audioFileService.CreateAudioFileAsync(dto, userId);
         return CreatedAtAction(nameof(GetAudioFileAsync), new { id = response.Id }, ApiResponse<AudioFileCreatedResponseDto>.SuccessResponse(response));
     }
@@ -150,6 +158,10 @@ public class AudioFilesController : BaseController
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> UploadNotificationAsync([FromBody] UploadNotificationDto dto)
     {
+        _logger.LogInformation(
+            "[WEBHOOK] POST /audio-files/webhook/upload-notification - S3Uri={S3Uri}, FileSize={FileSize}",
+            dto.S3Uri, dto.FileSize);
+        
         try
         {
             await _audioFileService.HandleUploadNotificationAsync(dto.S3Uri, dto.FileSize);
@@ -157,6 +169,7 @@ public class AudioFilesController : BaseController
         }
         catch (InvalidOperationException ex)
         {
+            _logger.LogError(ex, "Upload notification failed: {Message}", ex.Message);
             return Error<object>(ex.Message);
         }
     }
@@ -171,6 +184,10 @@ public class AudioFilesController : BaseController
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> PreprocessingResultAsync([FromBody] PreprocessingResultDto dto)
     {
+        _logger.LogInformation(
+            "[WEBHOOK] POST /audio-files/webhook/preprocessing-result - S3KeyTemp={S3KeyTemp}, AudioDuration={AudioDuration}",
+            dto.S3KeyTemp, dto.AudioDuration);
+        
         try
         {
             await _preprocessingService.HandlePreprocessingResultAsync(dto);
@@ -178,6 +195,7 @@ public class AudioFilesController : BaseController
         }
         catch (InvalidOperationException ex)
         {
+            _logger.LogError(ex, "Preprocessing result failed: {Message}", ex.Message);
             return Error<object>(ex.Message);
         }
     }

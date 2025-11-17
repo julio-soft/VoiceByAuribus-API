@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using VoiceByAuribus_API.Shared.Interfaces;
 using VoiceByAuribus_API.Features.Voices.Application.Dtos;
 using VoiceByAuribus_API.Features.Voices.Application.Mappings;
@@ -15,17 +16,24 @@ namespace VoiceByAuribus_API.Features.Voices.Application.Services;
 public class VoiceModelService(
     ApplicationDbContext context,
     IS3PresignedUrlService presignedUrlService,
-    ICurrentUserService currentUserService) : IVoiceModelService
+    ICurrentUserService currentUserService,
+    ILogger<VoiceModelService> logger) : IVoiceModelService
 {
     private const double PresignedLifetimeHours = 12;
 
     public async Task<IReadOnlyCollection<VoiceModelResponse>> GetVoicesAsync(
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Fetching all voice models");
+
         var voices = await context.VoiceModels
             .AsNoTracking()
             .OrderBy(v => v.Name)
             .ToListAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Retrieved {Count} voice models",
+            voices.Count);
 
         return voices
             .Select(voice => MapVoiceModel(voice))
@@ -36,11 +44,27 @@ public class VoiceModelService(
         Guid id,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation(
+            "Fetching voice model: VoiceModelId={VoiceModelId}",
+            id);
+
         var voice = await context.VoiceModels
             .AsNoTracking()
             .FirstOrDefaultAsync(v => v.Id == id, cancellationToken);
 
-        return voice is null ? null : MapVoiceModel(voice);
+        if (voice is null)
+        {
+            logger.LogWarning(
+                "Voice model not found: VoiceModelId={VoiceModelId}",
+                id);
+            return null;
+        }
+
+        logger.LogInformation(
+            "Voice model retrieved: VoiceModelId={VoiceModelId}, Name={Name}",
+            id, voice.Name);
+
+        return MapVoiceModel(voice);
     }
 
     private VoiceModelResponse MapVoiceModel(VoiceModel voice)

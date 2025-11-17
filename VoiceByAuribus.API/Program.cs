@@ -7,6 +7,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
 using VoiceByAuribus_API.Features.Auth;
 using VoiceByAuribus_API.Features.Voices;
 using VoiceByAuribus_API.Features.AudioFiles;
@@ -16,28 +17,35 @@ using VoiceByAuribus_API.Shared.Infrastructure.Middleware;
 using VoiceByAuribus_API.Shared.Infrastructure.Services;
 using VoiceByAuribus_API.Shared.Infrastructure.Configuration;
 
-Console.WriteLine($"[STARTUP] Starting VoiceByAuribus API");
-Console.WriteLine($"[STARTUP] Environment: {Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}");
-Console.Out.Flush();
+// Configure Serilog early (before building WebApplicationBuilder)
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
+
+Log.Information("Starting VoiceByAuribus API");
+Log.Information("Environment: {Environment}", Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"));
 
 var builder = WebApplication.CreateBuilder(args);
 
-Console.WriteLine("[STARTUP] WebApplicationBuilder created");
-Console.Out.Flush();
+// Configure Serilog from appsettings.json
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext());
+
+Log.Information("WebApplicationBuilder created");
 
 // Load secrets from AWS Secrets Manager in production
 LoadSecretsInProduction(builder);
 
-Console.WriteLine("[STARTUP] Loading features...");
-Console.Out.Flush();
+Log.Information("Loading features...");
 
 builder.Services.AddAuthFeature();
 builder.Services.AddVoicesFeature();
 builder.Services.AddAudioFilesFeature();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-Console.WriteLine("[STARTUP] Features loaded successfully");
-Console.Out.Flush();
+Log.Information("Features loaded successfully");
 
 builder.Services
     .AddControllers(options =>
@@ -55,8 +63,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
     options.SuppressModelStateInvalidFilter = true;
 });
 
-Console.WriteLine("[STARTUP] Configuring API versioning...");
-Console.Out.Flush();
+Log.Information("Configuring API versioning...");
 
 builder.Services.AddApiVersioning(options =>
     {
@@ -75,19 +82,16 @@ builder.Services.AddApiVersioning(options =>
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 
-Console.WriteLine("[STARTUP] Configuring authentication and authorization...");
-Console.Out.Flush();
+Log.Information("Configuring authentication and authorization...");
 
 ConfigureAuthentication(builder);
 ConfigureAuthorization(builder);
 
-Console.WriteLine("[STARTUP] Building application...");
-Console.Out.Flush();
+Log.Information("Building application...");
 
 var app = builder.Build();
 
-Console.WriteLine("[STARTUP] Application built successfully");
-Console.Out.Flush();
+Log.Information("Application built successfully");
 
 // Global exception handler (must be first)
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
@@ -102,15 +106,31 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Add Serilog request logging
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000}ms";
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
+        diagnosticContext.Set("UserAgent", httpContext.Request.Headers["User-Agent"].ToString());
+        diagnosticContext.Set("RemoteIP", httpContext.Connection.RemoteIpAddress);
+    };
+});
+
 app.MapControllers();
 
-Console.WriteLine("[STARTUP] Middleware configured, starting application...");
-Console.Out.Flush();
+Log.Information("Application starting, listening on configured ports...");
 
-app.Run();
-
-Console.WriteLine("[STARTUP] Application stopped");  // This won't be reached during normal operation
-Console.Out.Flush();
+try
+{
+    app.Run();
+}
+finally
+{
+    Log.Information("Application shutdown complete");
+    Log.CloseAndFlush();
+}
 
 /// <summary>
 /// Loads secrets from AWS Secrets Manager based on the current environment.
@@ -150,8 +170,7 @@ static void LoadSecretsInProduction(WebApplicationBuilder builder)
         region: awsRegion
     );
 
-    Console.WriteLine($"[STARTUP] Secrets loading completed (optional=true for debugging)");
-    Console.Out.Flush();
+    Log.Information("Secrets loading completed (optional=true for debugging)");
 }
 
 static void ConfigureAuthentication(WebApplicationBuilder builder)

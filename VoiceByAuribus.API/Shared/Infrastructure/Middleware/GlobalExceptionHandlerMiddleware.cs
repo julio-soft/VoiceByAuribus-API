@@ -35,7 +35,14 @@ public class GlobalExceptionHandlerMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unhandled exception occurred");
+            // Log with structured context for CloudWatch
+            _logger.LogError(ex, 
+                "Unhandled exception: {ExceptionType} | Path: {RequestPath} | Method: {RequestMethod} | TraceId: {TraceId}",
+                ex.GetType().Name,
+                context.Request.Path,
+                context.Request.Method,
+                context.TraceIdentifier);
+            
             await HandleExceptionAsync(context, ex);
         }
     }

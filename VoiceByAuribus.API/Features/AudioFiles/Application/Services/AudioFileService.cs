@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using VoiceByAuribus_API.Features.AudioFiles.Application.Dtos;
 using VoiceByAuribus_API.Features.AudioFiles.Application.Mappers;
 using VoiceByAuribus_API.Features.AudioFiles.Domain;
@@ -19,7 +20,8 @@ public class AudioFileService(
     IS3PresignedUrlService presignedUrlService,
     IDateTimeProvider dateTimeProvider,
     IAudioPreprocessingService preprocessingService,
-    IConfiguration configuration) : IAudioFileService
+    IConfiguration configuration,
+    ILogger<AudioFileService> logger) : IAudioFileService
 {
     private readonly string _audioBucket = configuration["AWS:S3:AudioFilesBucket"]
         ?? throw new InvalidOperationException("AWS:S3:AudioFilesBucket configuration is required");
@@ -28,6 +30,10 @@ public class AudioFileService(
 
     public async Task<AudioFileCreatedResponseDto> CreateAudioFileAsync(CreateAudioFileDto dto, Guid userId)
     {
+        logger.LogInformation(
+            "Creating audio file: FileName={FileName}, MimeType={MimeType}, UserId={UserId}",
+            dto.FileName, dto.MimeType, userId);
+
         var audioFile = new AudioFile
         {
             UserId = userId,
@@ -40,6 +46,10 @@ public class AudioFileService(
 
         context.AudioFiles.Add(audioFile);
         await context.SaveChangesAsync();
+
+        logger.LogInformation(
+            "Audio file created successfully: AudioFileId={AudioFileId}, S3Uri={S3Uri}",
+            audioFile.Id, audioFile.S3Uri);
 
         var uploadUrl = GenerateUploadUrl(audioFile.S3Uri, dto.MimeType);
         var expiresAt = dateTimeProvider.UtcNow.AddMinutes(_uploadExpirationMinutes);
@@ -58,21 +68,35 @@ public class AudioFileService(
 
     public async Task<RegenerateUploadUrlResponseDto> RegenerateUploadUrlAsync(Guid id, Guid userId)
     {
+        logger.LogInformation(
+            "Regenerating upload URL: AudioFileId={AudioFileId}, UserId={UserId}",
+            id, userId);
+
         var audioFile = await context.AudioFiles
             .FirstOrDefaultAsync(af => af.Id == id && af.UserId == userId);
 
         if (audioFile is null)
         {
+            logger.LogWarning(
+                "Audio file not found for regenerate URL: AudioFileId={AudioFileId}, UserId={UserId}",
+                id, userId);
             throw new InvalidOperationException("Audio file not found");
         }
 
         if (audioFile.UploadStatus != UploadStatus.AwaitingUpload)
         {
+            logger.LogWarning(
+                "Invalid upload status for URL regeneration: AudioFileId={AudioFileId}, Status={Status}",
+                id, audioFile.UploadStatus);
             throw new InvalidOperationException("Upload URL can only be regenerated for files awaiting upload");
         }
 
         var uploadUrl = GenerateUploadUrl(audioFile.S3Uri, audioFile.MimeType);
         var expiresAt = dateTimeProvider.UtcNow.AddMinutes(_uploadExpirationMinutes);
+
+        logger.LogInformation(
+            "Upload URL regenerated: AudioFileId={AudioFileId}",
+            id);
 
         return new RegenerateUploadUrlResponseDto
         {
@@ -118,33 +142,55 @@ public class AudioFileService(
 
     public async Task<bool> SoftDeleteAsync(Guid id, Guid userId)
     {
+        logger.LogInformation(
+            "Soft deleting audio file: AudioFileId={AudioFileId}, UserId={UserId}",
+            id, userId);
+
         var audioFile = await context.AudioFiles
             .FirstOrDefaultAsync(af => af.Id == id && af.UserId == userId);
 
         if (audioFile is null)
         {
+            logger.LogWarning(
+                "Audio file not found for deletion: AudioFileId={AudioFileId}, UserId={UserId}",
+                id, userId);
             return false;
         }
 
         audioFile.IsDeleted = true;
         await context.SaveChangesAsync();
 
+        logger.LogInformation(
+            "Audio file soft deleted: AudioFileId={AudioFileId}",
+            id);
+
         return true;
     }
 
     public async Task HandleUploadNotificationAsync(string s3Uri, long fileSize)
     {
+        logger.LogInformation(
+            "Processing upload notification: S3Uri={S3Uri}, FileSize={FileSize}",
+            s3Uri, fileSize);
+
         var audioFile = await context.AudioFiles
             .FirstOrDefaultAsync(af => af.S3Uri == s3Uri);
 
         if (audioFile is null)
         {
+            logger.LogError(
+                "Upload notification failed - audio file not found: S3Uri={S3Uri}",
+                s3Uri);
             throw new InvalidOperationException($"Audio file not found for S3 URI: {s3Uri}");
         }
 
         audioFile.UploadStatus = UploadStatus.Uploaded;
         audioFile.FileSize = fileSize;
         await context.SaveChangesAsync();
+
+        logger.LogInformation(
+            "Upload notification processed: AudioFileId={AudioFileId}, Status={Status}",
+            audioFile.Id, audioFile.UploadStatus);
 
         // Trigger preprocessing
         await preprocessingService.TriggerPreprocessingAsync(audioFile.Id);
