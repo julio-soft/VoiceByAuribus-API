@@ -28,4 +28,29 @@ public class SqsService(IAmazonSQS sqsClient) : ISqsService
 
         await sqsClient.SendMessageAsync(request);
     }
+
+    public async Task SendMessageAsync<T>(string queueUrl, T message, string deduplicationId, string? messageGroupId = null)
+    {
+        var messageBody = JsonSerializer.Serialize(message, _jsonOptions);
+
+        var request = new SendMessageRequest
+        {
+            QueueUrl = queueUrl,
+            MessageBody = messageBody
+        };
+
+        // Add deduplication ID (for FIFO queues, prevents duplicates within 5-minute window)
+        if (!string.IsNullOrWhiteSpace(deduplicationId))
+        {
+            request.MessageDeduplicationId = deduplicationId;
+        }
+
+        // Add message group ID (required for FIFO queues)
+        if (!string.IsNullOrWhiteSpace(messageGroupId))
+        {
+            request.MessageGroupId = messageGroupId;
+        }
+
+        await sqsClient.SendMessageAsync(request);
+    }
 }

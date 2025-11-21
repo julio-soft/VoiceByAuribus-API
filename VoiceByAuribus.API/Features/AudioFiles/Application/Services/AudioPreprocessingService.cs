@@ -65,11 +65,7 @@ public class AudioPreprocessingService(
                 audioFile.Id, preprocessing.S3UriShort, preprocessing.S3UriInference);
         }
 
-        // Update status to processing
-        audioFile.Preprocessing.ProcessingStatus = ProcessingStatus.Processing;
-        audioFile.Preprocessing.ProcessingStartedAt = dateTimeProvider.UtcNow;
-        await context.SaveChangesAsync();
-
+        
         // Send message to SQS
         var message = new PreprocessingMessageDto
         {
@@ -79,6 +75,11 @@ public class AudioPreprocessingService(
         };
 
         await sqsService.SendMessageAsync(_queueUrl, message);
+
+        // Update status to processing
+        audioFile.Preprocessing.ProcessingStatus = ProcessingStatus.Processing;
+        audioFile.Preprocessing.ProcessingStartedAt = dateTimeProvider.UtcNow;
+        await context.SaveChangesAsync();
         
         logger.LogInformation(
             "Preprocessing message sent to SQS: AudioFileId={AudioFileId}, QueueUrl={QueueUrl}",
