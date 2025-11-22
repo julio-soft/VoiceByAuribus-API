@@ -197,15 +197,14 @@ static void LoadSecretsInProduction(WebApplicationBuilder builder)
 
     // Load secrets from AWS Secrets Manager
     // The provider will automatically log to console during startup
-    // TEMPORARILY set to optional to see logs and diagnose the real issue
     builder.Configuration.AddAwsSecretsManager(
         secretId: secretId,
-        optional: true,  // TEMPORARY: Set to true to allow container to start and see logs
+        optional: !secretsRequired,  // Required in Production/Staging, optional in Development
         keyPrefix: null,
         region: awsRegion
     );
 
-    Log.Information("Secrets loading completed (optional=true for debugging)");
+    Log.Information("Secrets loading completed (required={Required}, secretId={SecretId})", secretsRequired, secretId);
 }
 
 static void ConfigureAuthentication(WebApplicationBuilder builder)

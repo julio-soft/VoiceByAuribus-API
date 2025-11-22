@@ -104,42 +104,109 @@ Este workflow NO se ejecuta automáticamente en push para prevenir:
 - Verificación automática post-deployment
 
 **Triggers**:
-- ✅ `push` a rama `main` - **Trigger principal** (automático)
+- ✅ `push` a rama `main` - **Trigger principal** (automático a Production)
+- ✅ `push` a rama `test` - **Deployment a Staging** (automático)
 - ✅ `workflow_dispatch` - Ejecución manual para re-deploys
 
-**Estrategia de Deployment**: Database-First, Zero-Downtime
+**Estrategia de Deployment**: Database-First, Zero-Downtime, Multi-Environment
 
 Este workflow implementa el patrón "Database First" que garantiza:
 1. Migrations se aplican ANTES de desplegar código nuevo
 2. Si migrations fallan, el deployment se cancela (fail-fast)
 3. App Runner auto-despliega solo DESPUÉS de que migrations sean exitosas
+4. **Environment dinámico basado en rama** (Production, Staging, Development)
+
+---
+
+### Ambientes por Rama
+
+El workflow detecta automáticamente el ambiente basado en la rama **CON VALIDACIÓN DE SEGURIDAD**:
+
+| Rama | Environment | Secret | Base de Datos | Permitido |
+|------|-------------|--------|---------------|-----------|
+| `main` | `Production` | `voice-by-auribus-api/production` | Producción | ✅ |
+| `test` | `Staging` | `voice-by-auribus-api/staging` | Staging | ✅ |
+| Otras | ❌ **RECHAZADO** | N/A | N/A | ❌ |
+
+**⚠️ PROTECCIÓN DE SEGURIDAD**: El workflow **falla inmediatamente** si se intenta ejecutar desde una rama que no sea `main` o `test`, previniendo migraciones accidentales en producción.
+
+**Implementación**:
+```yaml
+on:
+  push:
+    branches: 
+      - main  # Solo estas ramas pueden ejecutar el workflow
+      - test
+  workflow_dispatch:
+
+- name: Set Environment Variables
+  run: |
+    if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+      echo "ASPNETCORE_ENVIRONMENT=Production" >> $GITHUB_ENV
+      echo "SECRET_NAME=voice-by-auribus-api/production" >> $GITHUB_ENV
+    elif [ "${{ github.ref }}" == "refs/heads/test" ]; then
+      echo "ASPNETCORE_ENVIRONMENT=Staging" >> $GITHUB_ENV
+      echo "SECRET_NAME=voice-by-auribus-api/staging" >> $GITHUB_ENV
+    else
+      echo "❌ ERROR: Este workflow solo debe ejecutarse desde rama 'main' o 'test'"
+      exit 1  # FALLA EL WORKFLOW
+    fi
+
+- name: Validate Environment Configuration
+  run: |
+    # Doble validación de seguridad
+    if [ "${{ github.ref }}" == "refs/heads/main" ] && [ "$ASPNETCORE_ENVIRONMENT" != "Production" ]; then
+      echo "❌ ERROR DE SEGURIDAD: Rama main debe usar Production environment"
+      exit 1
+    fi
+```
+
+**Beneficios**:
+- ✅ Imposible ejecutar migrations en producción desde ramas de feature
+- ✅ Doble capa de validación (trigger + validación explícita)
+- ✅ Logs claros indicando por qué el workflow falló
+- ✅ Protección contra errores humanos (push accidental a main)
 
 ---
 
 #### Job 1: migrate
 
-**Responsabilidad**: Aplicar migraciones de Entity Framework Core a producción
+**Responsabilidad**: Aplicar migraciones de Entity Framework Core al ambiente correspondiente
 
 **Steps**:
 1. Checkout código
 2. Setup .NET 10
 3. Configure AWS Credentials (IAM user: `github-actions-ecr-voicebyauribusapi`)
-4. **Get Connection String**:
+4. **Set Environment Variables** (basado en rama):
+   ```bash
+   # Si rama = main:
+   ASPNETCORE_ENVIRONMENT=Production
+   SECRET_NAME=voice-by-auribus-api/production
+   
+   # Si rama = test:
+   ASPNETCORE_ENVIRONMENT=Staging
+   SECRET_NAME=voice-by-auribus-api/staging
+   
+   # Cualquier otra rama:
+   ASPNETCORE_ENVIRONMENT=Development
+   SECRET_NAME=voice-by-auribus-api/development
+   ```
+5. **Get Connection String** (desde secret dinámico):
    ```bash
    aws secretsmanager get-secret-value \
-     --secret-id "voice-by-auribus-api/production" \
+     --secret-id "$SECRET_NAME" \
      --query 'SecretString' | jq -r '.ConnectionStrings__DefaultConnection'
    ```
-5. Install EF Core Tools: `dotnet tool install --global dotnet-ef`
-6. **Restore NuGet Packages**: `dotnet restore VoiceByAuribus.API/VoiceByAuribus-API.csproj`
-7. **Apply Migrations**:
+6. Install EF Core Tools: `dotnet tool install --global dotnet-ef`
+7. **Restore NuGet Packages**: `dotnet restore VoiceByAuribus.API/VoiceByAuribus-API.csproj`
+8. **Apply Migrations** (con `ASPNETCORE_ENVIRONMENT` dinámico):
    ```bash
    dotnet ef database update \
      --project VoiceByAuribus.API/VoiceByAuribus-API.csproj \
      --connection "$DB_CONNECTION" \
      --verbose
    ```
-8. Verify Migration Status: `dotnet ef migrations list`
+9. Verify Migration Status: `dotnet ef migrations list`
 
 **Fail-Fast Behavior**:
 - ❌ Si connection string no se encuentra → Exit 1 → Jobs 2 y 3 cancelados
@@ -267,7 +334,7 @@ git push origin main
 
 ### IAM User: `github-actions-ecr-voicebyauribusapi`
 
-El usuario IAM tiene la política **GitHubActions-ECR-VoiceByAuribusApi** (versión **v3**) que incluye los siguientes permisos:
+El usuario IAM tiene la política **GitHubActions-ECR-VoiceByAuribusApi** (versión **v4**) que incluye los siguientes permisos:
 
 #### Statement 1: GetAuthorizationToken (ECR)
 
@@ -338,7 +405,7 @@ El usuario IAM tiene la política **GitHubActions-ECR-VoiceByAuribusApi** (versi
   "Sid": "SecretsManagerGetConnectionString",
   "Effect": "Allow",
   "Action": "secretsmanager:GetSecretValue",
-  "Resource": "arn:aws:secretsmanager:us-east-1:265584593347:secret:voice-by-auribus-api/production-*"
+  "Resource": "arn:aws:secretsmanager:us-east-1:265584593347:secret:voice-by-auribus-api/*"
 }
 ```
 
@@ -346,20 +413,41 @@ El usuario IAM tiene la política **GitHubActions-ECR-VoiceByAuribusApi** (versi
 
 **Usado por**: Job `migrate` para obtener `ConnectionStrings__DefaultConnection`
 
-**Secret**: `voice-by-auribus-api/production`
+**Secrets soportados** (basado en rama):
+- `voice-by-auribus-api/production` (rama `main`)
+- `voice-by-auribus-api/staging` (rama `test`)
+- `voice-by-auribus-api/development` (otras ramas)
 
 **Path del valor**: `ConnectionStrings__DefaultConnection` (⚠️ **doble underscore**)
 
 ---
 
-#### Statement 5: AppRunnerDeployment (Nuevo en v3)
+#### Statement 5: AppRunnerListServices (Nuevo en v4)
+
+```json
+{
+  "Sid": "AppRunnerListServices",
+  "Effect": "Allow",
+  "Action": "apprunner:ListServices",
+  "Resource": "*"
+}
+```
+
+**Propósito**: Listar servicios de App Runner en la cuenta
+
+**Usado por**: Job `deploy` para obtener el ARN del servicio
+
+**Resource**: Debe ser `*` (requerimiento de AWS para ListServices)
+
+---
+
+#### Statement 6: AppRunnerDeployment (Actualizado en v4)
 
 ```json
 {
   "Sid": "AppRunnerDeployment",
   "Effect": "Allow",
   "Action": [
-    "apprunner:ListServices",
     "apprunner:DescribeService",
     "apprunner:StartDeployment"
   ],
@@ -370,8 +458,6 @@ El usuario IAM tiene la política **GitHubActions-ECR-VoiceByAuribusApi** (versi
 **Propósito**: Gestionar deployments de App Runner
 
 **Usado por**: Job `deploy` para:
-
-- Listar servicios (`ListServices`)
 - Obtener estado del servicio (`DescribeService`)
 - Trigger deployment manual (`StartDeployment`)
 
@@ -379,7 +465,7 @@ El usuario IAM tiene la política **GitHubActions-ECR-VoiceByAuribusApi** (versi
 
 ---
 
-#### Statement 6: STSGetCallerIdentity (Nuevo en v3)
+#### Statement 7: STSGetCallerIdentity (Nuevo en v3)
 
 ```json
 {
@@ -833,7 +919,20 @@ git push origin main
    - Expandir step "Apply migrations"
    - Identificar error SQL
 
-2. Diagnosticar error localmente:
+2. **Error: "Environment: Development" en logs de migration**:
+   
+   **Causa**: EF Core ejecuta la aplicación para obtener DbContext y necesita `ASPNETCORE_ENVIRONMENT=Production`
+   
+   **Solución**: El workflow ya incluye esta variable de entorno:
+   ```yaml
+   - name: Apply Migrations
+     env:
+       ASPNETCORE_ENVIRONMENT: Production
+   ```
+   
+   Si ves logs indicando "Environment: Development" o intentando cargar secrets de development, verifica que este `env` esté presente.
+
+3. Diagnosticar error localmente:
 
    ```bash
    cd VoiceByAuribus.API
@@ -964,6 +1063,6 @@ git push origin main
 
 **Última actualización**: 2024-11-22
 
-**Versión de políticas IAM**: v3
+**Versión de políticas IAM**: v4
 
 **Maintainers**: Julio César (@julio-soft)

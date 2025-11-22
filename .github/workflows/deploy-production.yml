@@ -2,8 +2,10 @@ name: Deploy to Production
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch:  # Permite ejecutar manualmente desde GitHub UI
+    branches: 
+      - main
+      - test
+  workflow_dispatch:  # Permite ejecutar manualmente desde GitHub UI (con validación de rama)
 
 env:
   AWS_REGION: us-east-1
@@ -34,11 +36,50 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
       
+      - name: Set Environment Variables
+        run: |
+          echo "🔍 Detectando ambiente basado en rama: ${{ github.ref }}"
+          
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "ASPNETCORE_ENVIRONMENT=Production" >> $GITHUB_ENV
+            echo "SECRET_NAME=voice-by-auribus-api/production" >> $GITHUB_ENV
+            echo "✅ Environment: Production"
+          elif [ "${{ github.ref }}" == "refs/heads/test" ]; then
+            echo "ASPNETCORE_ENVIRONMENT=Staging" >> $GITHUB_ENV
+            echo "SECRET_NAME=voice-by-auribus-api/staging" >> $GITHUB_ENV
+            echo "✅ Environment: Staging"
+          else
+            echo "❌ ERROR: Este workflow solo debe ejecutarse desde rama 'main' o 'test'"
+            echo "Rama actual: ${{ github.ref }}"
+            echo "Para evitar migraciones no deseadas en producción, el workflow se cancela"
+            exit 1
+          fi
+      
+      - name: Validate Environment Configuration
+        run: |
+          echo "🔒 Validando configuración de ambiente..."
+          echo "Rama: ${{ github.ref }}"
+          echo "Environment: ${{ env.ASPNETCORE_ENVIRONMENT }}"
+          echo "Secret: ${{ env.SECRET_NAME }}"
+          
+          # Validación adicional de seguridad
+          if [ "${{ github.ref }}" == "refs/heads/main" ] && [ "${{ env.ASPNETCORE_ENVIRONMENT }}" != "Production" ]; then
+            echo "❌ ERROR DE SEGURIDAD: Rama main debe usar Production environment"
+            exit 1
+          fi
+          
+          if [ "${{ github.ref }}" == "refs/heads/test" ] && [ "${{ env.ASPNETCORE_ENVIRONMENT }}" != "Staging" ]; then
+            echo "❌ ERROR DE SEGURIDAD: Rama test debe usar Staging environment"
+            exit 1
+          fi
+          
+          echo "✅ Configuración de ambiente validada correctamente"
+      
       - name: Get Database Connection from Secrets Manager
         id: get-db-connection
         run: |
           SECRET_JSON=$(aws secretsmanager get-secret-value \
-            --secret-id "voice-by-auribus-api/production" \
+            --secret-id "${{ env.SECRET_NAME }}" \
             --region ${{ env.AWS_REGION }} \
             --query 'SecretString' \
             --output text)
@@ -52,7 +93,7 @@ jobs:
             exit 1
           fi
           
-          echo "✅ Connection string obtenida exitosamente"
+          echo "✅ Connection string obtenida exitosamente desde ${{ env.SECRET_NAME }}"
           # Guardar en variable de entorno (masked en logs)
           echo "::add-mask::$DB_CONNECTION"
           echo "DB_CONNECTION=$DB_CONNECTION" >> $GITHUB_ENV
@@ -69,7 +110,7 @@ jobs:
       
       - name: Apply Migrations
         run: |
-          echo "📦 Aplicando migraciones a base de datos de producción..."
+          echo "📦 Aplicando migraciones a base de datos de ${{ env.ASPNETCORE_ENVIRONMENT }}..."
           
           dotnet ef database update \
             --project VoiceByAuribus.API/VoiceByAuribus-API.csproj \
