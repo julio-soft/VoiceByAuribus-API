@@ -54,7 +54,11 @@ public class VoiceConversionConfiguration : IEntityTypeConfiguration<VoiceConver
         builder.HasIndex(x => x.AudioFileId);
         builder.HasIndex(x => x.VoiceModelId);
         builder.HasIndex(x => x.Status);
-        builder.HasIndex(x => new { x.Status, x.RetryCount })
-            .HasDatabaseName("ix_voice_conversions_status_retry_count");
+        
+        // Composite index for background processor query:
+        // WHERE Status = 'PendingPreprocessing' AND RetryCount < MaxRetryAttempts AND (LastRetryAt IS NULL OR LastRetryAt < ...)
+        // This index covers all three columns used in the WHERE clause for optimal query performance
+        builder.HasIndex(x => new { x.Status, x.RetryCount, x.LastRetryAt })
+            .HasDatabaseName("ix_voice_conversions_processing_query");
     }
 }

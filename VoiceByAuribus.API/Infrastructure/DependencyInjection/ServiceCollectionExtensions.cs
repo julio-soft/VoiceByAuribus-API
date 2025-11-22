@@ -21,6 +21,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
         services.AddScoped<IS3PresignedUrlService, S3PresignedUrlService>();
         services.AddSingleton<ISqsService, SqsService>();
+        services.AddSingleton<SqsQueueResolver>(); // SQS queue name to URL resolver with caching
         services.AddScoped<IHealthCheckService, HealthCheckService>();
 
         services.AddDefaultAWSOptions(configuration.GetAWSOptions());

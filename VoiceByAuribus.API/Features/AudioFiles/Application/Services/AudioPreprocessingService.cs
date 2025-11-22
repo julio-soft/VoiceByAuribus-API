@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using VoiceByAuribus_API.Features.AudioFiles.Application.Dtos;
 using VoiceByAuribus_API.Features.AudioFiles.Domain;
 using VoiceByAuribus_API.Shared.Infrastructure.Data;
+using VoiceByAuribus_API.Shared.Infrastructure.Services;
 using VoiceByAuribus_API.Shared.Interfaces;
 
 namespace VoiceByAuribus_API.Features.AudioFiles.Application.Services;
@@ -16,12 +17,13 @@ namespace VoiceByAuribus_API.Features.AudioFiles.Application.Services;
 public class AudioPreprocessingService(
     ApplicationDbContext context,
     ISqsService sqsService,
+    SqsQueueResolver sqsQueueResolver,
     IDateTimeProvider dateTimeProvider,
     IConfiguration configuration,
     ILogger<AudioPreprocessingService> logger) : IAudioPreprocessingService
 {
-    private readonly string _queueUrl = configuration["AWS:SQS:AudioPreprocessingQueueUrl"]
-        ?? throw new InvalidOperationException("AWS:SQS:AudioPreprocessingQueueUrl configuration is required");
+    private readonly string _queueName = configuration["AWS:SQS:AudioPreprocessingQueue"]
+        ?? throw new InvalidOperationException("AWS:SQS:AudioPreprocessingQueue configuration is required");
 
     private readonly string _audioBucket = configuration["AWS:S3:AudioFilesBucket"]
         ?? throw new InvalidOperationException("AWS:S3:AudioFilesBucket configuration is required");
@@ -66,6 +68,9 @@ public class AudioPreprocessingService(
         }
 
         
+        // Resolve queue URL from queue name
+        var queueUrl = await sqsQueueResolver.GetQueueUrlAsync(_queueName);
+        
         // Send message to SQS
         var message = new PreprocessingMessageDto
         {
@@ -74,7 +79,7 @@ public class AudioPreprocessingService(
             S3KeyForInference = audioFile.Preprocessing.S3UriInference!
         };
 
-        await sqsService.SendMessageAsync(_queueUrl, message);
+        await sqsService.SendMessageAsync(queueUrl, message);
 
         // Update status to processing
         audioFile.Preprocessing.ProcessingStatus = ProcessingStatus.Processing;
@@ -82,8 +87,8 @@ public class AudioPreprocessingService(
         await context.SaveChangesAsync();
         
         logger.LogInformation(
-            "Preprocessing message sent to SQS: AudioFileId={AudioFileId}, QueueUrl={QueueUrl}",
-            audioFileId, _queueUrl);
+            "Preprocessing message sent to SQS: AudioFileId={AudioFileId}, QueueName={QueueName}, QueueUrl={QueueUrl}",
+            audioFileId, _queueName, queueUrl);
     }
 
     public async Task HandlePreprocessingResultAsync(PreprocessingResultDto dto)

@@ -31,7 +31,7 @@ public class VoiceConversionsWebhookController : ControllerBase
     /// <summary>
     /// Webhook endpoint for voice conversion results from external service (internal use only).
     /// </summary>
-    [HttpPost("webhook/conversion-result")]
+    [HttpPost("webhooks/conversion-result")]
     [WebhookAuthentication]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
@@ -39,7 +39,7 @@ public class VoiceConversionsWebhookController : ControllerBase
     public async Task<IActionResult> ConversionResultAsync([FromBody] VoiceConversionWebhookDto dto)
     {
         _logger.LogInformation(
-            "[WEBHOOK] POST /voice-conversions/webhook/conversion-result - InferenceId={InferenceId}, Status={Status}",
+            "[WEBHOOK] POST /voice-conversions/webhooks/conversion-result - InferenceId={InferenceId}, Status={Status}",
             dto.InferenceId, dto.Status);
 
         try

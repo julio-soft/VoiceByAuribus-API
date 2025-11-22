@@ -89,6 +89,10 @@ Log.Information("Configuring authentication and authorization...");
 ConfigureAuthentication(builder);
 ConfigureAuthorization(builder);
 
+Log.Information("Configuring CORS...");
+
+ConfigureCors(builder);
+
 Log.Information("Building application...");
 
 var app = builder.Build();
@@ -104,6 +108,18 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Apply CORS policy if enabled
+var corsEnabled = builder.Configuration.GetValue<bool>("Cors:Enabled");
+if (corsEnabled)
+{
+    Log.Information("CORS is enabled");
+    app.UseCors("AllowConfiguredOrigins");
+}
+else
+{
+    Log.Information("CORS is disabled (M2M backend-to-backend communication only)");
+}
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -279,4 +295,61 @@ static void ConfigureAuthorization(WebApplicationBuilder builder)
         return user.FindAll("cognito:groups")
             .Any(group => group.Value.Equals(requiredScope, StringComparison.OrdinalIgnoreCase));
     }
+}
+
+/// <summary>
+/// Configures CORS (Cross-Origin Resource Sharing) for frontend applications.
+/// 
+/// Strategy for M2M authentication:
+/// - Currently disabled by default (Cors:Enabled = false in appsettings.json)
+/// - API is consumed by backend services using AWS Cognito M2M authentication
+/// - No browser-based clients, so CORS not required
+/// 
+/// For future frontend integration:
+/// - Enable via Cors:Enabled = true
+/// - Configure allowed origins in Cors:AllowedOrigins array
+/// - Example: ["https://app.example.com", "https://admin.example.com"]
+/// </summary>
+static void ConfigureCors(WebApplicationBuilder builder)
+{
+    var corsEnabled = builder.Configuration.GetValue<bool>("Cors:Enabled");
+    
+    if (!corsEnabled)
+    {
+        // CORS disabled - M2M backend-to-backend communication only
+        return;
+    }
+
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins")
+        .Get<string[]>() ?? Array.Empty<string>();
+
+    if (allowedOrigins.Length == 0)
+    {
+        Log.Warning("CORS enabled but no allowed origins configured. Set Cors:AllowedOrigins in appsettings.json");
+    }
+
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("AllowConfiguredOrigins", policy =>
+        {
+            if (allowedOrigins.Length > 0)
+            {
+                policy.WithOrigins(allowedOrigins)
+                    .AllowAnyMethod()
+                    .AllowAnyHeader()
+                    .AllowCredentials();
+                
+                Log.Information("CORS configured for origins: {Origins}", string.Join(", ", allowedOrigins));
+            }
+            else
+            {
+                // Fallback: allow all origins if none configured (development only)
+                policy.AllowAnyOrigin()
+                    .AllowAnyMethod()
+                    .AllowAnyHeader();
+                
+                Log.Warning("CORS allowing all origins (no specific origins configured)");
+            }
+        });
+    });
 }

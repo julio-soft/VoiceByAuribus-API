@@ -47,10 +47,6 @@ public class VoiceConversionsController : BaseController
         try
         {
             var userId = GetUserId();
-            _logger.LogInformation(
-                "[API] POST /voice-conversions - UserId={UserId}, AudioFileId={AudioFileId}, VoiceModelId={VoiceModelId}",
-                userId, dto.AudioFileId, dto.VoiceModelId);
-
             var response = await _voiceConversionService.CreateVoiceConversionAsync(dto, userId);
             return CreatedAtAction(
                 nameof(GetVoiceConversionAsync),
@@ -61,7 +57,7 @@ public class VoiceConversionsController : BaseController
         {
             _logger.LogWarning(
                 ex,
-                "[API] Failed to create voice conversion: {Message}",
+                "Failed to create voice conversion: {Message}",
                 ex.Message);
             return Error<object>(ex.Message);
         }
@@ -78,11 +74,8 @@ public class VoiceConversionsController : BaseController
     public async Task<IActionResult> GetVoiceConversionAsync(Guid id)
     {
         var userId = GetUserId();
-        _logger.LogInformation(
-            "[API] GET /voice-conversions/{Id} - UserId={UserId}",
-            id, userId);
-
         var conversion = await _voiceConversionService.GetVoiceConversionAsync(id, userId);
+        
         if (conversion is null)
         {
             return NotFound(ApiResponse<VoiceConversionResponseDto>.ErrorResponse("Voice conversion not found"));

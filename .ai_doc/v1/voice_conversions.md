@@ -163,7 +163,7 @@ Internal webhook endpoint called by the external voice conversion service.
 
 **Request:**
 ```http
-POST /api/v1/voice-conversions/webhook/conversion-result
+POST /api/v1/voice-conversions/webhooks/conversion-result
 X-Webhook-Api-Key: {api_key}
 Content-Type: application/json
 

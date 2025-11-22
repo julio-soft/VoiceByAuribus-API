@@ -1,5 +1,7 @@
 using System;
 using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -10,6 +12,7 @@ using VoiceByAuribus_API.Features.VoiceConversions.Application.Helpers;
 using VoiceByAuribus_API.Features.VoiceConversions.Application.Mappers;
 using VoiceByAuribus_API.Features.VoiceConversions.Domain;
 using VoiceByAuribus_API.Shared.Infrastructure.Data;
+using VoiceByAuribus_API.Shared.Infrastructure.Services;
 using VoiceByAuribus_API.Shared.Interfaces;
 
 namespace VoiceByAuribus_API.Features.VoiceConversions.Application.Services;
@@ -20,17 +23,18 @@ namespace VoiceByAuribus_API.Features.VoiceConversions.Application.Services;
 public class VoiceConversionService(
     ApplicationDbContext context,
     ISqsService sqsService,
+    SqsQueueResolver sqsQueueResolver,
     IS3PresignedUrlService presignedUrlService,
     ICurrentUserService currentUserService,
     IDateTimeProvider dateTimeProvider,
     IConfiguration configuration,
     ILogger<VoiceConversionService> logger) : IVoiceConversionService
 {
-    private readonly string _inferenceQueueUrl = configuration["AWS:SQS:VoiceInferenceQueueUrl"]
-        ?? throw new InvalidOperationException("AWS:SQS:VoiceInferenceQueueUrl configuration is required");
+    private readonly string _inferenceQueueName = configuration["AWS:SQS:VoiceInferenceQueue"]
+        ?? throw new InvalidOperationException("AWS:SQS:VoiceInferenceQueue configuration is required");
 
-    private readonly string _previewInferenceQueueUrl = configuration["AWS:SQS:PreviewInferenceQueueUrl"]
-        ?? throw new InvalidOperationException("AWS:SQS:PreviewInferenceQueueUrl configuration is required");
+    private readonly string _previewInferenceQueueName = configuration["AWS:SQS:PreviewInferenceQueue"]
+        ?? throw new InvalidOperationException("AWS:SQS:PreviewInferenceQueue configuration is required");
 
     private readonly string _audioBucket = configuration["AWS:S3:AudioFilesBucket"]
         ?? throw new InvalidOperationException("AWS:S3:AudioFilesBucket configuration is required");
@@ -229,7 +233,7 @@ public class VoiceConversionService(
         await context.SaveChangesAsync();
     }
 
-    public async Task ProcessPendingConversionsAsync()
+    public async Task<(int Processed, int Skipped)> ProcessPendingConversionsAsync(CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Starting background processing of pending voice conversions");
 
@@ -253,7 +257,7 @@ public class VoiceConversionService(
                            c.LastRetryAt.Value.AddMinutes(RetryDelayMinutes) <= dateTimeProvider.UtcNow)
                 .Select(c => c.Id)
                 .Take(10) // Process max 10 conversions per batch to avoid long-running transactions
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             if (pendingConversionIds.Count == 0)
             {
@@ -273,7 +277,7 @@ public class VoiceConversionService(
             {
                 try
                 {
-                    var processed = await ProcessSingleConversionAsync(conversionId);
+                    var processed = await ProcessSingleConversionAsync(conversionId, cancellationToken);
                     if (processed)
                         batchProcessed++;
                     else
@@ -322,20 +326,22 @@ public class VoiceConversionService(
                 "Background processing completed: TotalBatches={Batches}, TotalProcessed={Processed}, TotalSkipped={Skipped}",
                 batchCount, totalProcessed, totalSkipped);
         }
+
+        return (totalProcessed, totalSkipped);
     }
 
     /// <summary>
     /// Processes a single conversion with Optimistic Locking to prevent race conditions.
     /// Returns true if processed, false if skipped.
     /// </summary>
-    private async Task<bool> ProcessSingleConversionAsync(Guid conversionId)
+    private async Task<bool> ProcessSingleConversionAsync(Guid conversionId, CancellationToken cancellationToken = default)
     {
         // Load conversion with related data in a new transaction
         var conversion = await context.VoiceConversions
             .Include(c => c.AudioFile)
                 .ThenInclude(af => af.Preprocessing)
             .Include(c => c.VoiceModel)
-            .FirstOrDefaultAsync(c => c.Id == conversionId);
+            .FirstOrDefaultAsync(c => c.Id == conversionId, cancellationToken);
 
         if (conversion is null)
         {
@@ -394,7 +400,7 @@ public class VoiceConversionService(
                     conversion.Id);
 
                 // SaveChanges first (updates RowVersion), then queue to SQS
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
                 return true;
 
@@ -422,7 +428,7 @@ public class VoiceConversionService(
 
         // Save changes with Optimistic Locking
         // If another instance modified this record, DbUpdateConcurrencyException will be thrown
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -475,8 +481,11 @@ public class VoiceConversionService(
         // only one message will be delivered to SQS (within 5-minute deduplication window for FIFO queues)
         var deduplicationId = conversion.Id.ToString();
 
-        // Select the appropriate queue based on UsePreview
-        var queueUrl = conversion.UsePreview ? _previewInferenceQueueUrl : _inferenceQueueUrl;
+        // Select the appropriate queue name based on UsePreview
+        var queueName = conversion.UsePreview ? _previewInferenceQueueName : _inferenceQueueName;
+        
+        // Resolve queue URL from queue name
+        var queueUrl = await sqsQueueResolver.GetQueueUrlAsync(queueName);
 
         await sqsService.SendMessageAsync(
             queueUrl,
@@ -484,12 +493,34 @@ public class VoiceConversionService(
             deduplicationId);
 
         logger.LogInformation(
-            "Conversion message sent to SQS with deduplication: ConversionId={ConversionId}, DeduplicationId={DeduplicationId}, QueueUrl={QueueUrl}, UsePreview={UsePreview}",
-            conversion.Id, deduplicationId, queueUrl, conversion.UsePreview);
+            "Conversion message sent to SQS with deduplication: ConversionId={ConversionId}, DeduplicationId={DeduplicationId}, QueueName={QueueName}, QueueUrl={QueueUrl}, UsePreview={UsePreview}",
+            conversion.Id, deduplicationId, queueName, queueUrl, conversion.UsePreview);
     }
 
     private string BuildOutputS3Uri(Guid conversionId, Guid userId, string fileName, Transposition transposition, bool isPreview = false)
     {
-        return $"s3://{_audioBucket}/audio-files/{userId}/converted/{fileName}_{PitchShiftHelper.ToPitchShiftString(transposition)}{(isPreview ? "_preview" : "")}_{conversionId}.wav";
+        var sanitizedFileName = SanitizeFileName(fileName);
+        return $"s3://{_audioBucket}/audio-files/{userId}/converted/{sanitizedFileName}_{PitchShiftHelper.ToPitchShiftString(transposition)}{(isPreview ? "_preview" : "")}_{conversionId}.wav";
+    }
+
+    /// <summary>
+    /// Sanitizes a filename to be S3-compatible by replacing invalid characters with underscores.
+    /// Allows only alphanumeric characters, dots, hyphens, and underscores.
+    /// </summary>
+    /// <param name="fileName">The original filename (without extension)</param>
+    /// <returns>Sanitized filename safe for S3 URIs</returns>
+    private static string SanitizeFileName(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return "file";
+        }
+
+        // Replace any character that is NOT alphanumeric, dot, hyphen, or underscore with an underscore
+        // This prevents issues with spaces, slashes, and other special characters in S3 URIs
+        var sanitized = Regex.Replace(fileName, @"[^a-zA-Z0-9._-]", "_");
+
+        // Ensure the result is not empty after sanitization
+        return string.IsNullOrWhiteSpace(sanitized) ? "file" : sanitized;
     }
 }

@@ -33,5 +33,7 @@ public interface IVoiceConversionService
     /// Processes pending conversions waiting for audio preprocessing to complete.
     /// Called by background processor (Lambda).
     /// </summary>
-    Task ProcessPendingConversionsAsync();
+    /// <param name="cancellationToken">Cancellation token for timeout/shutdown</param>
+    /// <returns>Tuple with (processed count, skipped count)</returns>
+    Task<(int Processed, int Skipped)> ProcessPendingConversionsAsync(CancellationToken cancellationToken = default);
 }

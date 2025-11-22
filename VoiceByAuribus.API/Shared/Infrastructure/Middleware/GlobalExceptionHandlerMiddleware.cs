@@ -56,22 +56,26 @@ public class GlobalExceptionHandlerMiddleware
             UnauthorizedAccessException => CreateResponse(
                 HttpStatusCode.Unauthorized,
                 "Unauthorized",
-                exception.Message),
+                exception.Message,
+                context.TraceIdentifier),
 
             ArgumentException or ArgumentNullException => CreateResponse(
                 HttpStatusCode.BadRequest,
                 "Bad Request",
-                exception.Message),
+                exception.Message,
+                context.TraceIdentifier),
 
             KeyNotFoundException => CreateResponse(
                 HttpStatusCode.NotFound,
                 "Not Found",
-                exception.Message),
+                exception.Message,
+                context.TraceIdentifier),
 
             _ => CreateResponse(
                 HttpStatusCode.InternalServerError,
                 "Internal Server Error",
-                "An unexpected error occurred. Please try again later.")
+                $"An unexpected error occurred. Please contact support with trace ID: {context.TraceIdentifier}",
+                context.TraceIdentifier)
         };
 
         context.Response.StatusCode = (int)response.StatusCode;
@@ -83,9 +87,12 @@ public class GlobalExceptionHandlerMiddleware
     private static (HttpStatusCode StatusCode, ApiResponse<object> Body) CreateResponse(
         HttpStatusCode statusCode,
         string title,
-        string message)
+        string message,
+        string traceId)
     {
         var response = ApiResponse<object>.ErrorResponse(message, new[] { title }.ToList());
+        // Add TraceId to response data for debugging
+        response.Data = new { TraceId = traceId };
         return (statusCode, response);
     }
 }

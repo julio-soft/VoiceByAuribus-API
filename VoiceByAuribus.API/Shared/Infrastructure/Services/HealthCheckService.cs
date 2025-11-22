@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using Amazon.S3;
 using Amazon.SQS;
@@ -22,6 +23,7 @@ public class HealthCheckService : IHealthCheckService
     private readonly IAmazonS3 _s3Client;
     private readonly IAmazonSQS _sqsClient;
     private readonly ILogger<HealthCheckService> _logger;
+    private readonly IEnumerable<IBackgroundServiceHealthCheck> _backgroundServices;
     private readonly string _audioBucket;
     private readonly string _audioPreprocessingQueue;
 
@@ -30,12 +32,14 @@ public class HealthCheckService : IHealthCheckService
         IAmazonS3 s3Client,
         IAmazonSQS sqsClient,
         ILogger<HealthCheckService> logger,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IEnumerable<IBackgroundServiceHealthCheck> backgroundServices)
     {
         _dbContext = dbContext;
         _s3Client = s3Client;
         _sqsClient = sqsClient;
         _logger = logger;
+        _backgroundServices = backgroundServices;
 
         _audioBucket = configuration["AWS:S3:AudioFilesBucket"]
             ?? throw new InvalidOperationException("AWS:S3:AudioFilesBucket configuration is required");
@@ -64,13 +68,26 @@ public class HealthCheckService : IHealthCheckService
         var sqsStatus = await CheckSqsAsync();
         response.Services["sqs"] = sqsStatus;
 
+        // Check Background Services (non-critical)
+        foreach (var backgroundService in _backgroundServices)
+        {
+            var bgStatus = backgroundService.GetHealthStatus();
+            response.Services[bgStatus.ServiceName.ToLower()] = new ServiceHealthStatus
+            {
+                Status = bgStatus.Status,
+                Message = bgStatus.Message ?? $"Processed: {bgStatus.TotalProcessed}, Skipped: {bgStatus.TotalSkipped}, Last run: {bgStatus.LastSuccessfulRun:yyyy-MM-dd HH:mm:ss} UTC"
+            };
+        }
+
         // Determine overall health status
         // Only database is critical for overall health
         if (dbStatus.Status != "healthy")
         {
             response.Status = "unhealthy";
         }
-        else if (s3Status.Status != "healthy" || sqsStatus.Status != "healthy")
+        else if (s3Status.Status != "healthy" || 
+                 sqsStatus.Status != "healthy" || 
+                 _backgroundServices.Any(bg => bg.GetHealthStatus().Status == "unhealthy"))
         {
             response.Status = "degraded";
         }

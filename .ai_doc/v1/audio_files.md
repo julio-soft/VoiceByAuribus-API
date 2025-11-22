@@ -203,7 +203,7 @@ Soft deletes an audio file (sets `is_deleted` flag).
 
 ---
 
-### POST /api/v1/audio-files/webhook/upload-notification
+### POST /api/v1/audio-files/webhooks/upload-notification
 
 **Internal webhook endpoint** - Called by AWS Lambda when file is uploaded to S3.
 
@@ -232,7 +232,7 @@ Soft deletes an audio file (sets `is_deleted` flag).
 
 ---
 
-### POST /api/v1/audio-files/webhook/preprocessing-result
+### POST /api/v1/audio-files/webhooks/preprocessing-result
 
 **Internal webhook endpoint** - Called by external preprocessing service when processing completes.
 

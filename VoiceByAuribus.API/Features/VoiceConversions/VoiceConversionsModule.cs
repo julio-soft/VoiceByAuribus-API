@@ -3,6 +3,7 @@ using FluentValidation.AspNetCore;
 using Microsoft.Extensions.DependencyInjection;
 using VoiceByAuribus_API.Features.VoiceConversions.Application.BackgroundServices;
 using VoiceByAuribus_API.Features.VoiceConversions.Application.Services;
+using VoiceByAuribus_API.Shared.Interfaces;
 
 namespace VoiceByAuribus_API.Features.VoiceConversions;
 
@@ -16,8 +17,10 @@ public static class VoiceConversionsModule
         // Services
         services.AddScoped<IVoiceConversionService, VoiceConversionService>();
 
-        // Background Services
-        services.AddHostedService<VoiceConversionProcessorService>();
+        // Background Services - Register as singleton to expose health metrics
+        services.AddSingleton<VoiceConversionProcessorService>();
+        services.AddSingleton<IBackgroundServiceHealthCheck>(sp => sp.GetRequiredService<VoiceConversionProcessorService>());
+        services.AddHostedService(sp => sp.GetRequiredService<VoiceConversionProcessorService>());
 
         // FluentValidation - Auto-registers all validators in this assembly
         // They will automatically integrate with ASP.NET Core ModelState

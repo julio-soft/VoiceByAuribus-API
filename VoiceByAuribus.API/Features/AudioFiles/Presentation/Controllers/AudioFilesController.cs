@@ -45,10 +45,6 @@ public class AudioFilesController : BaseController
     public async Task<IActionResult> CreateAudioFileAsync([FromBody] CreateAudioFileDto dto)
     {
         var userId = GetUserId();
-        _logger.LogInformation(
-            "[API] POST /audio-files - UserId={UserId}, FileName={FileName}",
-            userId, dto.FileName);
-        
         var response = await _audioFileService.CreateAudioFileAsync(dto, userId);
         return CreatedAtAction(nameof(GetAudioFileAsync), new { id = response.Id }, ApiResponse<AudioFileCreatedResponseDto>.SuccessResponse(response));
     }
@@ -151,7 +147,7 @@ public class AudioFilesController : BaseController
     /// <summary>
     /// Webhook endpoint for S3 upload notifications (internal use only)
     /// </summary>
-    [HttpPost("webhook/upload-notification")]
+    [HttpPost("webhooks/upload-notification")]
     [WebhookAuthentication]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
@@ -159,7 +155,7 @@ public class AudioFilesController : BaseController
     public async Task<IActionResult> UploadNotificationAsync([FromBody] UploadNotificationDto dto)
     {
         _logger.LogInformation(
-            "[WEBHOOK] POST /audio-files/webhook/upload-notification - S3Uri={S3Uri}, FileSize={FileSize}",
+            "[WEBHOOK] POST /audio-files/webhooks/upload-notification - S3Uri={S3Uri}, FileSize={FileSize}",
             dto.S3Uri, dto.FileSize);
         
         try
@@ -177,7 +173,7 @@ public class AudioFilesController : BaseController
     /// <summary>
     /// Webhook endpoint for preprocessing results (internal use only)
     /// </summary>
-    [HttpPost("webhook/preprocessing-result")]
+    [HttpPost("webhooks/preprocessing-result")]
     [WebhookAuthentication]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
@@ -185,7 +181,7 @@ public class AudioFilesController : BaseController
     public async Task<IActionResult> PreprocessingResultAsync([FromBody] PreprocessingResultDto dto)
     {
         _logger.LogInformation(
-            "[WEBHOOK] POST /audio-files/webhook/preprocessing-result - S3KeyTemp={S3KeyTemp}, AudioDuration={AudioDuration}",
+            "[WEBHOOK] POST /audio-files/webhooks/preprocessing-result - S3KeyTemp={S3KeyTemp}, AudioDuration={AudioDuration}",
             dto.S3KeyTemp, dto.AudioDuration);
         
         try
