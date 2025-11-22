@@ -2,12 +2,14 @@
 
 ## Project Overview
 
-VoiceByAuribus API is a .NET-based backend service for voice model management and audio file processing. The API provides:
+VoiceByAuribus API is a .NET-based backend service for voice model management, audio file processing, and voice conversion. The API provides:
 
 - **Voice Model Management**: CRUD operations for voice models with S3 storage integration
 - **Audio File Upload & Processing**: Pre-signed URL-based uploads with automatic preprocessing pipeline
+- **Voice Conversion**: Background-processed voice transformations with pitch shifting and status tracking
 - **Authentication**: AWS Cognito M2M (machine-to-machine) authentication with scope-based authorization
 - **Multi-tenancy**: User-owned resources with automatic filtering and admin override
+- **Health Monitoring**: Comprehensive health checks for services, database, and AWS resources
 
 ## Technology Stack
 
@@ -22,14 +24,16 @@ VoiceByAuribus API is a .NET-based backend service for voice model management an
 
 ### AWS Services
 - **S3**: Object storage for audio files and voice models
-- **SQS**: Queue for audio preprocessing tasks
+- **SQS**: Queues for audio preprocessing and voice inference tasks
 - **Lambda**: Event-driven functions (S3 upload notifications)
 - **Cognito**: M2M authentication with resource server scopes
+- **Secrets Manager**: Secure configuration management with automatic loading
 
 ### Additional Libraries
 - **FluentValidation**: Complex request validation
 - **Asp.Versioning**: URL-based API versioning
-- **AWSSDK.S3, AWSSDK.SQS**: AWS service integration
+- **AWSSDK.S3, AWSSDK.SQS, AWSSDK.SecretsManager**: AWS service integration
+- **Serilog**: Structured logging with JSON output
 
 ## Architecture
 
@@ -49,11 +53,17 @@ VoiceByAuribus.API/
 │   │   ├── Presentation/
 │   │   └── VoicesModule.cs
 │   │
-│   └── AudioFiles/              # Audio files feature
+│   ├── AudioFiles/              # Audio files feature
+│   │   ├── Domain/
+│   │   ├── Application/
+│   │   ├── Presentation/
+│   │   └── AudioFilesModule.cs
+│   │
+│   └── VoiceConversions/        # Voice conversion feature
 │       ├── Domain/
 │       ├── Application/
 │       ├── Presentation/
-│       └── AudioFilesModule.cs
+│       └── VoiceConversionsModule.cs
 │
 ├── Shared/                      # Cross-cutting concerns
 │   ├── Domain/                  # Base entities and response models
@@ -79,6 +89,8 @@ VoiceByAuribus.AudioUploadNotifier/  # AWS Lambda project
 3. **Global Query Filters**: Automatic soft-delete and user ownership filtering
 4. **Auditing**: Automatic CreatedAt/UpdatedAt timestamps
 5. **Standardized Responses**: All endpoints return `ApiResponse<T>` wrapper
+6. **Background Processing**: Hosted services with optimistic locking for concurrent operations
+7. **Optimistic Concurrency**: Row versioning for safe multi-instance deployments
 
 **See**: [docs/architecture.md](docs/architecture.md) for detailed architecture documentation
 
@@ -149,7 +161,9 @@ Features/FeatureName/
          "MaxFileSizeMB": 100
        },
        "SQS": {
-         "PreprocessingQueueUrl": "https://sqs.us-east-1.amazonaws.com/..."
+         "AudioPreprocessingQueue": "aurivoice-svs-prep-nbl.fifo",
+         "VoiceInferenceQueue": "voice-inference-queue",
+         "PreviewInferenceQueue": "preview-inference-queue"
        }
      }
    }
@@ -262,41 +276,19 @@ All endpoints return `ApiResponse<T>`:
 
 ## Configuration
 
-### appsettings.json Structure
+### Key Configuration Areas
 
-```json
-{
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information"
-    }
-  },
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=voicebyauribus;..."
-  },
-  "JwtBearer": {
-    "Authority": "https://cognito-idp.{region}.amazonaws.com/{userPoolId}",
-    "Audience": "not-used-in-m2m",
-    "RequiredScopes": ["voice-by-auribus-api/base"]
-  },
-  "AWS": {
-    "Region": "us-east-1",
-    "S3": {
-      "AudioFilesBucket": "bucket-name",
-      "VoiceModelsBucket": "bucket-name",
-      "UploadUrlExpirationMinutes": 15,
-      "DownloadUrlExpirationMinutes": 720,
-      "MaxFileSizeMB": 100
-    },
-    "SQS": {
-      "PreprocessingQueueUrl": "https://sqs.us-east-1.amazonaws.com/..."
-    }
-  },
-  "Webhooks": {
-    "ApiKey": "your-webhook-api-key"
-  }
-}
-```
+The application is configured via `appsettings.json` and AWS Secrets Manager (in production):
+
+- **Serilog**: Structured logging with JSON output (replaces default .NET logging)
+- **Database**: PostgreSQL connection string
+- **Authentication**: AWS Cognito M2M with custom scope validation
+- **AWS Services**: S3 buckets, SQS queue names (not URLs), region configuration
+- **Webhooks**: API key authentication for internal webhooks
+- **VoiceConversions**: Background processor settings (interval, retry logic, timeouts)
+- **AWS Secrets Manager**: Auto-loaded in production via custom configuration provider
+
+**See**: `VoiceByAuribus.API/appsettings.json` for complete configuration structure
 
 ## Authentication
 
@@ -333,6 +325,17 @@ The API uses **AWS Cognito M2M authentication** with scope-based authorization.
 - Processing status tracking
 - User ownership and soft delete
 
+### VoiceConversions Feature ⭐ NEW
+- Voice-to-voice conversion with pitch shifting
+- Background processor with optimistic locking (3-second polling)
+- Automatic status progression based on preprocessing completion
+- Retry mechanism with exponential backoff (max 5 attempts)
+- Support for full audio and preview (10s) conversions
+- Multiple transposition options (same octave, ±12 semitones, thirds, fifths)
+- Health monitoring integration
+- Webhook-based result handling from external inference service
+- User ownership with automatic filtering
+
 **See**: [docs/api.md](docs/api.md) for detailed API documentation
 
 ## Key Files Reference
@@ -344,6 +347,7 @@ The API uses **AWS Cognito M2M authentication** with scope-based authorization.
 - `Features/Auth/AuthModule.cs`: Auth DI registration
 - `Features/Voices/VoicesModule.cs`: Voices DI registration
 - `Features/AudioFiles/AudioFilesModule.cs`: AudioFiles DI registration
+- `Features/VoiceConversions/VoiceConversionsModule.cs`: VoiceConversions DI registration
 
 ### Shared Infrastructure
 - `Shared/Infrastructure/Data/ApplicationDbContext.cs`: EF Core DbContext
@@ -352,6 +356,9 @@ The API uses **AWS Cognito M2M authentication** with scope-based authorization.
 - `Shared/Infrastructure/Services/CurrentUserService.cs`: JWT claims extraction
 - `Shared/Infrastructure/Services/S3PresignedUrlService.cs`: S3 URL generation
 - `Shared/Infrastructure/Services/SqsService.cs`: SQS message publishing
+- `Shared/Infrastructure/Services/SqsQueueResolver.cs`: Queue name to URL resolution with caching
+- `Shared/Infrastructure/Services/HealthCheckService.cs`: Comprehensive health monitoring
+- `Shared/Infrastructure/Configuration/AwsSecretsManagerConfigurationProvider.cs`: AWS Secrets Manager integration
 - `Shared/Infrastructure/Filters/WebhookAuthenticationAttribute.cs`: Webhook API key validation
 - `Shared/Infrastructure/Middleware/GlobalExceptionHandlerMiddleware.cs`: Global error handling
 

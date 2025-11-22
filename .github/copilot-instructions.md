@@ -20,15 +20,21 @@ Features/                    # Feature-based vertical slices
     Application/{Dtos,Services,Validators}/
     Presentation/Controllers/
     AudioFilesModule.cs      # Feature DI registration
+  VoiceConversions/          # Voice conversion feature
+    Domain/{VoiceConversion,ConversionStatus,Transposition}.cs
+    Application/{Dtos,Services,Validators,Helpers,BackgroundServices}/
+    Presentation/{Controllers,Webhooks}/
+    VoiceConversionsModule.cs  # Feature DI registration
 Shared/                      # Cross-cutting concerns only
   Domain/                    # BaseAuditableEntity, ISoftDelete, IHasUserId, ApiResponse
-  Interfaces/                # ICurrentUserService, IDateTimeProvider, IS3PresignedUrlService, ISqsService
+  Interfaces/                # ICurrentUserService, IDateTimeProvider, IS3PresignedUrlService, ISqsService, IHealthCheckService
   Infrastructure/
     Data/
       ApplicationDbContext.cs
       ModelBuilderExtensions.cs
       Configurations/        # ALL EF Core entity configurations (organized by feature)
-    Services/                # CurrentUserService, S3PresignedUrlService, SqsService, etc.
+    Services/                # CurrentUserService, S3PresignedUrlService, SqsService, SqsQueueResolver, HealthCheckService, etc.
+    Configuration/           # AwsSecretsManagerConfigurationProvider
     Filters/                 # ValidationFilter, WebhookAuthenticationAttribute
     Middleware/              # GlobalExceptionHandlerMiddleware
     Controllers/             # BaseController
@@ -40,14 +46,16 @@ VoiceByAuribus.AudioUploadNotifier/  # AWS Lambda for S3 upload notifications
 ## Database & EF Core
 
 - **DbContext**: `Shared/Infrastructure/Data/ApplicationDbContext.cs` - central context referencing all feature entities
+- **Tables**: `voice_models`, `audio_files`, `audio_preprocessings`, `voice_conversions`
 - **Entity Configurations**: All `IEntityTypeConfiguration<T>` implementations must be placed in `Shared/Infrastructure/Data/Configurations/`
-  - Name pattern: `{EntityName}Configuration.cs` (e.g., `VoiceModelConfiguration.cs`)
+  - Name pattern: `{EntityName}Configuration.cs` (e.g., `VoiceModelConfiguration.cs`, `VoiceConversionConfiguration.cs`)
   - Add XML comment indicating the feature: `/// <summary>Entity Framework configuration for {Entity} ({Feature} feature)</summary>`
   - Configurations are auto-discovered via `ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly)`
 - **Global Filters**: Automatic soft-delete and user ownership filters applied via `ModelBuilderExtensions.ApplyGlobalFilters()`
   - `ISoftDelete`: Entities with `IsDeleted` auto-filtered from queries
   - `IHasUserId`: Entities scoped to current user (unless user is admin)
 - **Auditing**: `CreatedAt`/`UpdatedAt` set automatically in `SaveChangesAsync()` via `BaseAuditableEntity`
+- **Optimistic Concurrency**: `VoiceConversion` uses `RowVersion` for safe multi-instance updates
 - **Migrations**: Run from solution root: `dotnet ef migrations add MigrationName --project VoiceByAuribus.API/VoiceByAuribus-API.csproj`, `dotnet ef database update --project VoiceByAuribus.API/VoiceByAuribus-API.csproj`
 
 ## Authentication & Authorization (AWS Cognito M2M)
@@ -67,17 +75,28 @@ VoiceByAuribus.AudioUploadNotifier/  # AWS Lambda for S3 upload notifications
 - **Admin-Only Paths**: `VoiceModel.VoiceModelPath` and `VoiceModelIndexPath` only returned when `ICurrentUserService.IsAdmin == true`
 - **Example**: See `Features/Voices/Application/Services/VoiceModelService.cs` → `MapVoiceModel()` method
 
-## Audio Files & Preprocessing
+## Features Overview
 
-**Feature**: Audio file upload with automatic preprocessing pipeline
+### Audio Files & Preprocessing
 
 - **Upload Flow**: Client creates record → receives pre-signed PUT URL → uploads to S3 → Lambda notifies backend → preprocessing triggered
 - **S3 Structure**: `audio-files/{userId}/{temp|short|inference}/{fileId}.ext`
-- **Processing**: External service reads from SQS, generates 10s preview + inference-ready file, callbacks backend
+- **Processing**: External service reads from SQS (`aurivoice-svs-prep-nbl.fifo`), generates 10s preview + inference-ready file, callbacks backend
 - **User Ownership**: AudioFile implements `IHasUserId` for automatic user isolation
 - **Admin Data**: S3 URIs and preprocessing details only visible to admins
 - **Webhooks**: `/webhooks/upload-notification` and `/webhooks/preprocessing-result` use `WebhookAuthenticationAttribute` with API key
-- **Documentation**: See `.ai_doc/v1/audio_files.md` and `.ai_doc/AWS_RESOURCES.md`
+
+### Voice Conversions ⭐ NEW FEATURE
+
+- **Background Processing**: `VoiceConversionProcessorService` polls every 3 seconds for pending conversions
+- **Status Flow**: `PendingPreprocessing` → `Queued` → `Processing` → `Completed`/`Failed`
+- **Optimistic Locking**: Uses `RowVersion` to prevent race conditions in multi-instance deployments
+- **Retry Logic**: Max 5 attempts with 5-minute delay between retries
+- **Queues**: Sends to `VoiceInferenceQueue` (full audio) or `PreviewInferenceQueue` (10s preview)
+- **Pitch Shifting**: Multiple transposition options via `Transposition` enum (same octave, ±12 semitones, thirds, fifths)
+- **Health Monitoring**: Integrated with `IHealthCheckService` for processor status tracking
+- **User Ownership**: Implements `IHasUserId` for automatic user isolation
+- **Configuration**: Background processor settings in `appsettings.json` under `VoiceConversions:BackgroundProcessor`
 
 ## Development Workflows
 
@@ -110,6 +129,15 @@ dotnet ef database update --project VoiceByAuribus.API/VoiceByAuribus-API.csproj
 dotnet build VoiceByAuribus-API.sln
 dotnet test VoiceByAuribus-API.sln
 ```
+
+## Logging
+
+- **Framework**: Serilog (replaces default .NET logging)
+- **Format**: Structured JSON output via `CompactJsonFormatter`
+- **Enrichment**: RequestId, MachineName, ThreadId, EnvironmentName, RemoteIP, UserId, UserAgent
+- **Request Logging**: HTTP method, path, status code, elapsed time
+- **Levels**: Information (default), Warning (4xx, ASP.NET Core, EF Core), Error (5xx, exceptions)
+- **Configuration**: In `appsettings.json` under `Serilog` section
 
 ## Conventions
 
@@ -164,17 +192,24 @@ To test all projects: `dotnet test VoiceByAuribus-API.sln`
 ## AWS Services Integration
 
 - **S3**: Audio file storage, voice model storage
-- **SQS**: Audio preprocessing queue (`ISqsService` for sending messages)
+- **SQS**: Multiple queues for async processing
+  - `aurivoice-svs-prep-nbl.fifo`: Audio preprocessing (FIFO)
+  - `VoiceInferenceQueue`: Full audio voice conversions
+  - `PreviewInferenceQueue`: Preview (10s) voice conversions
+  - Use `SqsQueueResolver` for queue name → URL resolution with caching
 - **Lambda**: S3 upload event handler (`VoiceByAuribus.AudioUploadNotifier`)
 - **Cognito**: M2M authentication with resource server scopes
-- **Configuration**: AWS resources configured in `appsettings.json` under `AWS:S3` and `AWS:SQS`
+- **Secrets Manager**: Production configuration via `AwsSecretsManagerConfigurationProvider` with retry logic
+- **Configuration**: Queue names (not URLs) in `appsettings.json` under `AWS:SQS`, resolved at runtime
 
 ## Key Files to Reference
 
-- **Feature DI**: `Features/Auth/AuthModule.cs`, `Features/Voices/VoicesModule.cs`, `Features/AudioFiles/AudioFilesModule.cs`
+- **Feature DI**: `Features/Auth/AuthModule.cs`, `Features/Voices/VoicesModule.cs`, `Features/AudioFiles/AudioFilesModule.cs`, `Features/VoiceConversions/VoiceConversionsModule.cs`
+- **Background Services**: `Features/VoiceConversions/Application/BackgroundServices/VoiceConversionProcessorService.cs`
 - **Global Filters**: `Shared/Infrastructure/Data/ModelBuilderExtensions.cs`
 - **Auth Setup**: `Program.cs` → `ConfigureAuthentication()` and `ConfigureAuthorization()`
-- **Shared Services**: `Shared/Infrastructure/Services/{CurrentUserService,S3PresignedUrlService,SqsService}.cs`
+- **Shared Services**: `Shared/Infrastructure/Services/{CurrentUserService,S3PresignedUrlService,SqsService,SqsQueueResolver,HealthCheckService}.cs`
+- **Configuration**: `Shared/Infrastructure/Configuration/AwsSecretsManagerConfigurationProvider.cs`
 - **Base Controller**: `Shared/Infrastructure/Controllers/BaseController.cs` - provides `Success<T>()`, `Error<T>()`, and `GetUserId()`
 - **API Response**: `Shared/Domain/ApiResponse.cs` - standardized response wrapper for all endpoints
 - **Webhook Auth**: `Shared/Infrastructure/Filters/WebhookAuthenticationAttribute.cs` - validates `X-Webhook-Api-Key` header
