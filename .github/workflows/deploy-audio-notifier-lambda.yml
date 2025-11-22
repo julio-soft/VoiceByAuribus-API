@@ -31,9 +31,6 @@ jobs:
       run:
         working-directory: VoiceByAuribus.AudioUploadNotifier
 
-    outputs:
-      package-path: ${{ steps.package.outputs.package-path }}
-
     steps:
       # ========================================================================
       # STEP 1: CHECKOUT CODE
@@ -108,7 +105,6 @@ jobs:
       # STEP 8: PACKAGE LAMBDA FUNCTION
       # ========================================================================
       - name: Package Lambda function
-        id: package
         run: |
           echo "📦 Packaging Lambda function..."
           cd src/VoiceByAuribus.AudioUploadNotifier
@@ -120,9 +116,6 @@ jobs:
 
           echo "✅ Lambda package created: lambda-package.zip"
           ls -lh ../../lambda-package.zip
-
-          # Set output
-          echo "package-path=VoiceByAuribus.AudioUploadNotifier/lambda-package.zip" >> $GITHUB_OUTPUT
 
       # ========================================================================
       # STEP 9: UPLOAD LAMBDA PACKAGE
@@ -162,85 +155,22 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       # ========================================================================
-      # STEP 3: DEBUG AWS CREDENTIALS
-      # ========================================================================
-      - name: Debug AWS credentials and permissions
-        run: |
-          echo "🔍 Debugging AWS credentials..."
-          echo ""
-          echo "AWS Caller Identity:"
-          aws sts get-caller-identity
-          echo ""
-          echo "IAM User ARN:"
-          USER_ARN=$(aws sts get-caller-identity --query 'Arn' --output text)
-          echo "$USER_ARN"
-          echo ""
-
-          echo "=========================================="
-          echo "Testing Lambda permissions..."
-          echo "=========================================="
-          echo "Function: ${{ env.FUNCTION_NAME }}"
-          echo "Region: ${{ env.AWS_REGION }}"
-          echo ""
-          echo "Attempting to call get-function-configuration..."
-          echo ""
-
-          if aws lambda get-function-configuration \
-            --function-name ${{ env.FUNCTION_NAME }} \
-            --region ${{ env.AWS_REGION }} 2>&1; then
-            echo ""
-            echo "✅ SUCCESS: Can access Lambda function"
-          else
-            echo ""
-            echo "❌ FAILED: Cannot access Lambda function"
-            echo ""
-            echo "Expected resource ARN:"
-            echo "  arn:aws:lambda:${{ env.AWS_REGION }}:265584593347:function:${{ env.FUNCTION_NAME }}"
-            echo ""
-            echo "This usually means:"
-            echo "  1. The IAM policy doesn't include this function ARN in the Resource list"
-            echo "  2. The policy version is not set as default"
-            echo "  3. IAM policy changes haven't propagated yet (can take up to 5 minutes)"
-          fi
-          echo ""
-
-      # ========================================================================
-      # STEP 4: VERIFY LAMBDA FUNCTION EXISTS
+      # STEP 3: VERIFY LAMBDA FUNCTION EXISTS
       # ========================================================================
       - name: Verify Lambda function exists
         run: |
           echo "🔍 Verifying Lambda function exists..."
-          echo "Function name: ${{ env.FUNCTION_NAME }}"
-          echo "Region: ${{ env.AWS_REGION }}"
-          echo ""
 
-          # Try to get function configuration (requires lambda:GetFunction permission)
-          if aws lambda get-function-configuration \
+          aws lambda get-function-configuration \
             --function-name ${{ env.FUNCTION_NAME }} \
-            --region ${{ env.AWS_REGION }} > /dev/null 2>&1; then
-            echo "✅ Lambda function found: ${{ env.FUNCTION_NAME }}"
+            --region ${{ env.AWS_REGION }} \
+            --query '{FunctionName:FunctionName,Runtime:Runtime,Handler:Handler,LastModified:LastModified}' \
+            --output table
 
-            # Display current configuration
-            echo ""
-            echo "Current function configuration:"
-            aws lambda get-function-configuration \
-              --function-name ${{ env.FUNCTION_NAME }} \
-              --region ${{ env.AWS_REGION }} \
-              --query '{FunctionName:FunctionName,Runtime:Runtime,Handler:Handler,LastModified:LastModified}' \
-              --output table
-          else
-            echo "❌ Error: Lambda function '${{ env.FUNCTION_NAME }}' not found or no permission to access it"
-            echo ""
-            echo "Please verify:"
-            echo "1. The function exists in region ${{ env.AWS_REGION }}"
-            echo "2. The IAM user has lambda:GetFunction permission"
-            echo "3. The function name is correct: ${{ env.FUNCTION_NAME }}"
-            echo "4. The resource pattern in IAM policy matches: arn:aws:lambda:${{ env.AWS_REGION }}:*:function:VoiceByAuribus-*"
-            exit 1
-          fi
+          echo "✅ Lambda function verified"
 
       # ========================================================================
-      # STEP 5: DEPLOY TO AWS LAMBDA
+      # STEP 4: DEPLOY TO AWS LAMBDA
       # ========================================================================
       - name: Update Lambda function code
         run: |
@@ -265,7 +195,7 @@ jobs:
           }'
 
       # ========================================================================
-      # STEP 6: WAIT FOR UPDATE TO COMPLETE
+      # STEP 5: WAIT FOR UPDATE TO COMPLETE
       # ========================================================================
       - name: Wait for update to complete
         run: |
@@ -278,7 +208,7 @@ jobs:
           echo "✅ Lambda function update completed"
 
       # ========================================================================
-      # STEP 7: VERIFY DEPLOYMENT
+      # STEP 6: VERIFY DEPLOYMENT
       # ========================================================================
       - name: Verify deployment
         run: |
@@ -314,7 +244,7 @@ jobs:
           echo "✅ Deployment verified successfully"
 
       # ========================================================================
-      # STEP 8: GET COMMIT INFO
+      # STEP 7: GET COMMIT INFO
       # ========================================================================
       - name: Get commit info
         id: commit-info
@@ -324,7 +254,7 @@ jobs:
           echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
 
       # ========================================================================
-      # STEP 9: TAG LAMBDA FUNCTION
+      # STEP 8: TAG LAMBDA FUNCTION
       # ========================================================================
       - name: Tag Lambda function with deployment info
         run: |
@@ -345,7 +275,7 @@ jobs:
           echo "✅ Lambda function tagged successfully"
 
       # ========================================================================
-      # STEP 10: DEPLOYMENT SUMMARY
+      # STEP 9: DEPLOYMENT SUMMARY
       # ========================================================================
       - name: Deployment summary
         if: success()
@@ -369,7 +299,7 @@ jobs:
           echo "=========================================="
 
       # ========================================================================
-      # STEP 11: NOTIFY ON FAILURE
+      # STEP 10: NOTIFY ON FAILURE
       # ========================================================================
       - name: Notify on failure
         if: failure()
@@ -395,11 +325,14 @@ jobs:
 # - AWS_ACCESS_KEY_ID: AWS access key from IAM user github-actions-ecr-voicebyauribusapi
 # - AWS_SECRET_ACCESS_KEY: Corresponding AWS secret key
 #
-# The IAM user policy (GitHubActions-ECR-VoiceByAuribusApi v4) includes:
+# The IAM user policy (GitHubActions-ECR-VoiceByAuribusApi v5) includes:
 # Statement 3: LambdaUpdateFunctionCode
 #   - lambda:UpdateFunctionCode
 #   - lambda:GetFunction
+#   - lambda:GetFunctionConfiguration
 #   - lambda:PublishVersion
 #   - lambda:TagResource
-#   Resource: arn:aws:lambda:us-east-1:265584593347:function:VoiceByAuribus-*
+#   Resource:
+#     - arn:aws:lambda:us-east-1:265584593347:function:VoiceByAuribusApi-ConversionProcessor
+#     - arn:aws:lambda:us-east-1:265584593347:function:VoiceByAuribus-AudioUploadNotifier
 # ==============================================================================
