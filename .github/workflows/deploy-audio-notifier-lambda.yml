@@ -68,6 +68,10 @@ jobs:
             --configuration Release \
             --no-restore
 
+          dotnet build test/VoiceByAuribus.AudioUploadNotifier.Tests/VoiceByAuribus.AudioUploadNotifier.Tests.csproj \
+            --configuration Release \
+            --no-restore
+
       # ========================================================================
       # STEP 5: RUN TESTS
       # ========================================================================
