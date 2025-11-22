@@ -162,7 +162,38 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       # ========================================================================
-      # STEP 3: VERIFY LAMBDA FUNCTION EXISTS
+      # STEP 3: DEBUG AWS CREDENTIALS
+      # ========================================================================
+      - name: Debug AWS credentials and permissions
+        run: |
+          echo "🔍 Debugging AWS credentials..."
+          echo ""
+          echo "AWS Caller Identity:"
+          aws sts get-caller-identity
+          echo ""
+          echo "IAM User ARN:"
+          USER_ARN=$(aws sts get-caller-identity --query 'Arn' --output text)
+          echo "$USER_ARN"
+          echo ""
+
+          # Extract user name from ARN
+          USER_NAME=$(echo "$USER_ARN" | awk -F'/' '{print $NF}')
+          echo "IAM User Name: $USER_NAME"
+          echo ""
+
+          echo "Attached Policies:"
+          aws iam list-attached-user-policies --user-name "$USER_NAME" --output table
+          echo ""
+
+          echo "Testing Lambda permissions..."
+          echo "Attempting to call get-function-configuration..."
+          aws lambda get-function-configuration \
+            --function-name ${{ env.FUNCTION_NAME }} \
+            --region ${{ env.AWS_REGION }} 2>&1 || true
+          echo ""
+
+      # ========================================================================
+      # STEP 4: VERIFY LAMBDA FUNCTION EXISTS
       # ========================================================================
       - name: Verify Lambda function exists
         run: |
@@ -197,7 +228,7 @@ jobs:
           fi
 
       # ========================================================================
-      # STEP 4: DEPLOY TO AWS LAMBDA
+      # STEP 5: DEPLOY TO AWS LAMBDA
       # ========================================================================
       - name: Update Lambda function code
         run: |
@@ -222,7 +253,7 @@ jobs:
           }'
 
       # ========================================================================
-      # STEP 5: WAIT FOR UPDATE TO COMPLETE
+      # STEP 6: WAIT FOR UPDATE TO COMPLETE
       # ========================================================================
       - name: Wait for update to complete
         run: |
@@ -235,7 +266,7 @@ jobs:
           echo "✅ Lambda function update completed"
 
       # ========================================================================
-      # STEP 6: VERIFY DEPLOYMENT
+      # STEP 7: VERIFY DEPLOYMENT
       # ========================================================================
       - name: Verify deployment
         run: |
@@ -271,7 +302,7 @@ jobs:
           echo "✅ Deployment verified successfully"
 
       # ========================================================================
-      # STEP 7: GET COMMIT INFO
+      # STEP 8: GET COMMIT INFO
       # ========================================================================
       - name: Get commit info
         id: commit-info
@@ -281,7 +312,7 @@ jobs:
           echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
 
       # ========================================================================
-      # STEP 8: TAG LAMBDA FUNCTION
+      # STEP 9: TAG LAMBDA FUNCTION
       # ========================================================================
       - name: Tag Lambda function with deployment info
         run: |
@@ -305,7 +336,7 @@ jobs:
           echo "✅ Lambda function tagged successfully"
 
       # ========================================================================
-      # STEP 9: DEPLOYMENT SUMMARY
+      # STEP 10: DEPLOYMENT SUMMARY
       # ========================================================================
       - name: Deployment summary
         if: success()
@@ -329,7 +360,7 @@ jobs:
           echo "=========================================="
 
       # ========================================================================
-      # STEP 10: NOTIFY ON FAILURE
+      # STEP 11: NOTIFY ON FAILURE
       # ========================================================================
       - name: Notify on failure
         if: failure()
