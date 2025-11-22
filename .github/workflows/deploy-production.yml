@@ -108,25 +108,49 @@ jobs:
           dotnet tool install --global dotnet-ef
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
       
-      - name: Restore NuGet Packages
+      - name: Restore and Build
         run: |
-          echo "📦 Restaurando paquetes NuGet..."
+          echo "📦 Restaurando paquetes NuGet y compilando proyecto..."
           dotnet restore VoiceByAuribus.API/VoiceByAuribus-API.csproj
-      
+          dotnet build VoiceByAuribus.API/VoiceByAuribus-API.csproj --no-restore --configuration Release
+
+      - name: Check Pending Migrations
+        id: check-migrations
+        run: |
+          echo "🔍 Verificando si hay migraciones pendientes..."
+
+          # Listar todas las migraciones y buscar las pendientes
+          MIGRATIONS_OUTPUT=$(dotnet ef migrations list \
+            --project VoiceByAuribus.API/VoiceByAuribus-API.csproj \
+            --connection "${{ env.DB_CONNECTION }};Command Timeout=60" \
+            --no-build 2>&1 || true)
+
+          echo "$MIGRATIONS_OUTPUT"
+
+          # Verificar si hay migraciones pendientes
+          if echo "$MIGRATIONS_OUTPUT" | grep -qi "pending\|not applied"; then
+            echo "HAS_PENDING=true" >> $GITHUB_OUTPUT
+            echo "⚠️  Se encontraron migraciones pendientes"
+          else
+            echo "HAS_PENDING=false" >> $GITHUB_OUTPUT
+            echo "✅ No hay migraciones pendientes - la base de datos está actualizada"
+          fi
+
       - name: Apply Migrations
+        if: steps.check-migrations.outputs.HAS_PENDING == 'true'
         run: |
           echo "📦 Aplicando migraciones a base de datos de ${{ env.ASPNETCORE_ENVIRONMENT }}..."
-          
+
           MAX_RETRIES=3
           RETRY=0
           SUCCESS=false
-          
+
           while [ $RETRY -lt $MAX_RETRIES ] && [ "$SUCCESS" = "false" ]; do
             if [ $RETRY -gt 0 ]; then
               echo "⚠️  Retry attempt $RETRY/$MAX_RETRIES after waiting 30 seconds..."
               sleep 30
             fi
-            
+
             if dotnet ef database update \
               --project VoiceByAuribus.API/VoiceByAuribus-API.csproj \
               --connection "${{ env.DB_CONNECTION }};Command Timeout=60" \
@@ -141,16 +165,11 @@ jobs:
               fi
             fi
           done
-      
-      - name: Verify Migration Status
+
+      - name: Skip Migrations
+        if: steps.check-migrations.outputs.HAS_PENDING == 'false'
         run: |
-          echo "🔍 Verificando estado de las migraciones..."
-          
-          # Listar migraciones aplicadas (requiere conexión a DB)
-          dotnet ef migrations list \
-            --project VoiceByAuribus.API/VoiceByAuribus-API.csproj \
-            --connection "${{ env.DB_CONNECTION }}" \
-            --no-build
+          echo "ℹ️  No hay migraciones para aplicar. Continuando con el deployment..."
   
   # ==============================================================================
   # JOB 2: BUILD & PUSH (reutiliza workflow existente)
