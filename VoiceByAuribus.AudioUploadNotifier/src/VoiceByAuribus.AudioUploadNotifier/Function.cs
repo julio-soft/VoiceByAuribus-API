@@ -113,6 +113,11 @@ public class Function
     /// <returns>True if the event indicates upload completion, false otherwise</returns>
     private static bool IsUploadCompletionEvent(string eventName)
     {
+        if (string.IsNullOrEmpty(eventName))
+        {
+            return false;
+        }
+
         // Only process events that indicate a completed upload
         // - s3:ObjectCreated:Put - Direct PUT upload (small files, typical with pre-signed URLs)
         // - s3:ObjectCreated:CompleteMultipartUpload - Multipart upload completion (large files)
@@ -140,7 +145,7 @@ public class Function
     /// </summary>
     private async Task NotifyBackendAsync(string s3Uri, long fileSize, ILambdaContext context)
     {
-        var webhookUrl = $"{_apiBaseUrl.TrimEnd('/')}/api/v1/audio-files/webhook/upload-notification";
+        var webhookUrl = $"{_apiBaseUrl.TrimEnd('/')}/api/v1/audio-files/webhooks/upload-notification";
 
         var payload = new { s3_uri = s3Uri, file_size = fileSize };
         var jsonContent = JsonSerializer.Serialize(payload, new JsonSerializerOptions

@@ -39,10 +39,15 @@ public class FunctionTest
             {
                 new S3Event.S3EventNotificationRecord
                 {
+                    EventName = "ObjectCreated:Put",
                     S3 = new S3Event.S3Entity
                     {
                         Bucket = new S3Event.S3BucketEntity { Name = "test-bucket" },
-                        Object = new S3Event.S3ObjectEntity { Key = "audio-files/user123/temp/file123.mp3" }
+                        Object = new S3Event.S3ObjectEntity
+                        {
+                            Key = "audio-files/user123/temp/file123.mp3",
+                            Size = 1024000
+                        }
                     }
                 }
             }
@@ -63,7 +68,7 @@ public class FunctionTest
             Times.Once(),
             ItExpr.Is<HttpRequestMessage>(req =>
                 req.Method == HttpMethod.Post &&
-                req.RequestUri!.ToString() == $"{apiBaseUrl}/api/v1/audio-files/webhook/upload-notification" &&
+                req.RequestUri!.ToString() == $"{apiBaseUrl}/api/v1/audio-files/webhooks/upload-notification" &&
                 req.Headers.Contains("X-Webhook-Api-Key")),
             ItExpr.IsAny<CancellationToken>());
     }
@@ -94,18 +99,28 @@ public class FunctionTest
             {
                 new S3Event.S3EventNotificationRecord
                 {
+                    EventName = "ObjectCreated:Put",
                     S3 = new S3Event.S3Entity
                     {
                         Bucket = new S3Event.S3BucketEntity { Name = "test-bucket" },
-                        Object = new S3Event.S3ObjectEntity { Key = "file1.mp3" }
+                        Object = new S3Event.S3ObjectEntity
+                        {
+                            Key = "audio-files/user1/temp/file1.mp3",
+                            Size = 512000
+                        }
                     }
                 },
                 new S3Event.S3EventNotificationRecord
                 {
+                    EventName = "ObjectCreated:CompleteMultipartUpload",
                     S3 = new S3Event.S3Entity
                     {
                         Bucket = new S3Event.S3BucketEntity { Name = "test-bucket" },
-                        Object = new S3Event.S3ObjectEntity { Key = "file2.mp3" }
+                        Object = new S3Event.S3ObjectEntity
+                        {
+                            Key = "audio-files/user2/temp/file2.mp3",
+                            Size = 2048000
+                        }
                     }
                 }
             }
@@ -152,10 +167,15 @@ public class FunctionTest
             {
                 new S3Event.S3EventNotificationRecord
                 {
+                    EventName = "ObjectCreated:Put",
                     S3 = new S3Event.S3Entity
                     {
                         Bucket = new S3Event.S3BucketEntity { Name = "test-bucket" },
-                        Object = new S3Event.S3ObjectEntity { Key = "file.mp3" }
+                        Object = new S3Event.S3ObjectEntity
+                        {
+                            Key = "audio-files/user999/temp/error-file.mp3",
+                            Size = 256000
+                        }
                     }
                 }
             }
