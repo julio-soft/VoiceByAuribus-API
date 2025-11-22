@@ -1,0 +1,343 @@
+name: Deploy Audio Upload Notifier Lambda
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'VoiceByAuribus.AudioUploadNotifier/**'
+      - '.github/workflows/deploy-audio-notifier-lambda.yml'
+  workflow_dispatch:  # Allow manual trigger
+
+# Prevent concurrent deployments
+concurrency:
+  group: lambda-audio-notifier-deployment
+  cancel-in-progress: false  # Wait for previous deployment to finish
+
+env:
+  AWS_REGION: us-east-1
+  FUNCTION_NAME: VoiceByAuribus-AudioUploadNotifier
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  # ==============================================================================
+  # JOB 1: TEST & BUILD
+  # ==============================================================================
+  test-and-build:
+    name: Test and Build Lambda Package
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: VoiceByAuribus.AudioUploadNotifier
+
+    outputs:
+      package-path: ${{ steps.package.outputs.package-path }}
+
+    steps:
+      # ========================================================================
+      # STEP 1: CHECKOUT CODE
+      # ========================================================================
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ========================================================================
+      # STEP 2: SETUP .NET
+      # ========================================================================
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # ========================================================================
+      # STEP 3: RESTORE DEPENDENCIES
+      # ========================================================================
+      - name: Restore dependencies
+        run: |
+          echo "📦 Restoring dependencies..."
+          dotnet restore src/VoiceByAuribus.AudioUploadNotifier/VoiceByAuribus.AudioUploadNotifier.csproj
+          dotnet restore test/VoiceByAuribus.AudioUploadNotifier.Tests/VoiceByAuribus.AudioUploadNotifier.Tests.csproj
+
+      # ========================================================================
+      # STEP 4: BUILD PROJECT
+      # ========================================================================
+      - name: Build project
+        run: |
+          echo "🔨 Building project..."
+          dotnet build src/VoiceByAuribus.AudioUploadNotifier/VoiceByAuribus.AudioUploadNotifier.csproj \
+            --configuration Release \
+            --no-restore
+
+      # ========================================================================
+      # STEP 5: RUN TESTS
+      # ========================================================================
+      - name: Run tests
+        run: |
+          echo "🧪 Running tests..."
+          dotnet test test/VoiceByAuribus.AudioUploadNotifier.Tests/VoiceByAuribus.AudioUploadNotifier.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --verbosity normal \
+            --logger "trx;LogFileName=test-results.trx"
+
+      # ========================================================================
+      # STEP 6: UPLOAD TEST RESULTS
+      # ========================================================================
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: VoiceByAuribus.AudioUploadNotifier/test/VoiceByAuribus.AudioUploadNotifier.Tests/TestResults/test-results.trx
+          if-no-files-found: warn
+
+      # ========================================================================
+      # STEP 7: INSTALL AWS LAMBDA TOOLS
+      # ========================================================================
+      - name: Install AWS Lambda Tools
+        run: |
+          echo "📥 Installing Amazon.Lambda.Tools..."
+          dotnet tool install -g Amazon.Lambda.Tools
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      # ========================================================================
+      # STEP 8: PACKAGE LAMBDA FUNCTION
+      # ========================================================================
+      - name: Package Lambda function
+        id: package
+        run: |
+          echo "📦 Packaging Lambda function..."
+          cd src/VoiceByAuribus.AudioUploadNotifier
+
+          dotnet lambda package \
+            --configuration Release \
+            --framework net8.0 \
+            --output-package ../../lambda-package.zip
+
+          echo "✅ Lambda package created: lambda-package.zip"
+          ls -lh ../../lambda-package.zip
+
+          # Set output
+          echo "package-path=VoiceByAuribus.AudioUploadNotifier/lambda-package.zip" >> $GITHUB_OUTPUT
+
+      # ========================================================================
+      # STEP 9: UPLOAD LAMBDA PACKAGE
+      # ========================================================================
+      - name: Upload Lambda package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-package
+          path: VoiceByAuribus.AudioUploadNotifier/lambda-package.zip
+          retention-days: 7
+
+  # ==============================================================================
+  # JOB 2: DEPLOY TO AWS LAMBDA
+  # ==============================================================================
+  deploy:
+    name: Deploy to AWS Lambda
+    runs-on: ubuntu-latest
+    needs: test-and-build  # Only run if tests passed
+
+    steps:
+      # ========================================================================
+      # STEP 1: DOWNLOAD LAMBDA PACKAGE
+      # ========================================================================
+      - name: Download Lambda package
+        uses: actions/download-artifact@v4
+        with:
+          name: lambda-package
+
+      # ========================================================================
+      # STEP 2: CONFIGURE AWS CREDENTIALS
+      # ========================================================================
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ========================================================================
+      # STEP 3: VERIFY LAMBDA FUNCTION EXISTS
+      # ========================================================================
+      - name: Verify Lambda function exists
+        run: |
+          echo "🔍 Verifying Lambda function exists..."
+
+          if aws lambda get-function \
+            --function-name ${{ env.FUNCTION_NAME }} \
+            --region ${{ env.AWS_REGION }} &> /dev/null; then
+            echo "✅ Lambda function found: ${{ env.FUNCTION_NAME }}"
+          else
+            echo "❌ Error: Lambda function '${{ env.FUNCTION_NAME }}' not found"
+            echo "Please create the function first or update FUNCTION_NAME in workflow"
+            exit 1
+          fi
+
+      # ========================================================================
+      # STEP 4: DEPLOY TO AWS LAMBDA
+      # ========================================================================
+      - name: Update Lambda function code
+        run: |
+          echo "🚀 Deploying to AWS Lambda..."
+
+          aws lambda update-function-code \
+            --function-name ${{ env.FUNCTION_NAME }} \
+            --zip-file fileb://lambda-package.zip \
+            --region ${{ env.AWS_REGION }} \
+            --publish \
+            --output json > deployment-result.json
+
+          echo "✅ Lambda function code updated"
+
+          # Display deployment info
+          cat deployment-result.json | jq '{
+            FunctionName: .FunctionName,
+            Version: .Version,
+            CodeSize: .CodeSize,
+            LastModified: .LastModified,
+            State: .State
+          }'
+
+      # ========================================================================
+      # STEP 5: WAIT FOR UPDATE TO COMPLETE
+      # ========================================================================
+      - name: Wait for update to complete
+        run: |
+          echo "⏳ Waiting for Lambda function update to complete..."
+
+          aws lambda wait function-updated-v2 \
+            --function-name ${{ env.FUNCTION_NAME }} \
+            --region ${{ env.AWS_REGION }}
+
+          echo "✅ Lambda function update completed"
+
+      # ========================================================================
+      # STEP 6: VERIFY DEPLOYMENT
+      # ========================================================================
+      - name: Verify deployment
+        run: |
+          echo "🔍 Verifying deployment..."
+
+          FUNCTION_INFO=$(aws lambda get-function-configuration \
+            --function-name ${{ env.FUNCTION_NAME }} \
+            --region ${{ env.AWS_REGION }})
+
+          echo "Function Configuration:"
+          echo "$FUNCTION_INFO" | jq '{
+            FunctionName: .FunctionName,
+            Runtime: .Runtime,
+            LastModified: .LastModified,
+            State: .State,
+            LastUpdateStatus: .LastUpdateStatus,
+            CodeSize: .CodeSize,
+            MemorySize: .MemorySize,
+            Timeout: .Timeout
+          }'
+
+          # Check if deployment was successful
+          STATE=$(echo "$FUNCTION_INFO" | jq -r '.State')
+          UPDATE_STATUS=$(echo "$FUNCTION_INFO" | jq -r '.LastUpdateStatus')
+
+          if [ "$STATE" != "Active" ] || [ "$UPDATE_STATUS" != "Successful" ]; then
+            echo "❌ Deployment verification failed!"
+            echo "State: $STATE (expected: Active)"
+            echo "Update Status: $UPDATE_STATUS (expected: Successful)"
+            exit 1
+          fi
+
+          echo "✅ Deployment verified successfully"
+
+      # ========================================================================
+      # STEP 7: GET COMMIT INFO
+      # ========================================================================
+      - name: Get commit info
+        id: commit-info
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
+
+      # ========================================================================
+      # STEP 8: TAG LAMBDA FUNCTION
+      # ========================================================================
+      - name: Tag Lambda function with deployment info
+        run: |
+          echo "🏷️ Tagging Lambda function..."
+
+          FUNCTION_ARN=$(aws lambda get-function \
+            --function-name ${{ env.FUNCTION_NAME }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Configuration.FunctionArn' \
+            --output text)
+
+          aws lambda tag-resource \
+            --resource "$FUNCTION_ARN" \
+            --tags \
+              "DeployedAt=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              "GitCommit=${{ steps.commit-info.outputs.SHORT_SHA }}" \
+              "GitBranch=${{ github.ref_name }}" \
+              "DeployedBy=GitHubActions" \
+              "WorkflowRun=${{ github.run_number }}"
+
+          echo "✅ Lambda function tagged successfully"
+
+      # ========================================================================
+      # STEP 9: DEPLOYMENT SUMMARY
+      # ========================================================================
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "=========================================="
+          echo "✅ LAMBDA DEPLOYMENT SUCCESSFUL"
+          echo "=========================================="
+          echo "Function: ${{ env.FUNCTION_NAME }}"
+          echo "Region: ${{ env.AWS_REGION }}"
+          echo "Runtime: dotnet8"
+          echo "Git Commit: ${{ steps.commit-info.outputs.SHORT_SHA }}"
+          echo "Deployed At: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo ""
+          echo "Monitoring:"
+          echo "  - CloudWatch Logs: https://console.aws.amazon.com/cloudwatch/home?region=${{ env.AWS_REGION }}#logsV2:log-groups/log-group/\$252Faws\$252Flambda\$252F${{ env.FUNCTION_NAME }}"
+          echo "  - Lambda Console: https://console.aws.amazon.com/lambda/home?region=${{ env.AWS_REGION }}#/functions/${{ env.FUNCTION_NAME }}"
+          echo ""
+          echo "Trigger Configuration:"
+          echo "  - S3 Event: ObjectCreated on audio-files/*/temp/*"
+          echo "  - Webhook URL: [API_BASE_URL]/api/v1/audio-files/webhooks/upload-notification"
+          echo "=========================================="
+
+      # ========================================================================
+      # STEP 10: NOTIFY ON FAILURE
+      # ========================================================================
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "=========================================="
+          echo "❌ LAMBDA DEPLOYMENT FAILED"
+          echo "=========================================="
+          echo "Function: ${{ env.FUNCTION_NAME }}"
+          echo "Region: ${{ env.AWS_REGION }}"
+          echo "Workflow Run: ${{ github.run_number }}"
+          echo "Git Commit: ${{ github.sha }}"
+          echo ""
+          echo "Check the workflow logs for details:"
+          echo "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "=========================================="
+
+# ==============================================================================
+# REQUIRED GITHUB SECRETS
+# ==============================================================================
+# Configure these secrets in: Settings > Secrets and variables > Actions
+#
+# Required secrets (already configured for main API deployment):
+# - AWS_ACCESS_KEY_ID: AWS access key from IAM user github-actions-ecr-voicebyauribusapi
+# - AWS_SECRET_ACCESS_KEY: Corresponding AWS secret key
+#
+# The IAM user policy (GitHubActions-ECR-VoiceByAuribusApi v4) includes:
+# Statement 3: LambdaUpdateFunctionCode
+#   - lambda:UpdateFunctionCode
+#   - lambda:GetFunction
+#   - lambda:PublishVersion
+#   - lambda:TagResource
+#   Resource: arn:aws:lambda:us-east-1:265584593347:function:VoiceByAuribus-*
+# ==============================================================================
