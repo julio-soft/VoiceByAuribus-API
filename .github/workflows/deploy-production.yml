@@ -1,0 +1,237 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Permite ejecutar manualmente desde GitHub UI
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: voice-by-auribus-api
+  PROJECT_NAME: voice-by-auribus-api
+
+jobs:
+  # ==============================================================================
+  # JOB 1: APLICAR MIGRACIONES
+  # ==============================================================================
+  migrate:
+    name: Apply Database Migrations
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Get Database Connection from Secrets Manager
+        id: get-db-connection
+        run: |
+          SECRET_JSON=$(aws secretsmanager get-secret-value \
+            --secret-id "voice-by-auribus-api/production" \
+            --region ${{ env.AWS_REGION }} \
+            --query 'SecretString' \
+            --output text)
+          
+          # Extraer ConnectionString del JSON
+          DB_CONNECTION=$(echo "$SECRET_JSON" | jq -r '.ConnectionStrings__DefaultConnection')
+          
+          # Verificar que no esté vacío
+          if [ -z "$DB_CONNECTION" ] || [ "$DB_CONNECTION" == "null" ]; then
+            echo "❌ Error: No se pudo obtener la connection string"
+            exit 1
+          fi
+          
+          echo "✅ Connection string obtenida exitosamente"
+          # Guardar en variable de entorno (masked en logs)
+          echo "::add-mask::$DB_CONNECTION"
+          echo "DB_CONNECTION=$DB_CONNECTION" >> $GITHUB_ENV
+      
+      - name: Install EF Core Tools
+        run: |
+          dotnet tool install --global dotnet-ef
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+      
+      - name: Apply Migrations
+        run: |
+          echo "📦 Aplicando migraciones a base de datos de producción..."
+          
+          dotnet ef database update \
+            --project VoiceByAuribus.API/VoiceByAuribus-API.csproj \
+            --connection "${{ env.DB_CONNECTION }}" \
+            --verbose
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ Migraciones aplicadas exitosamente"
+          else
+            echo "❌ Error aplicando migraciones"
+            exit 1
+          fi
+      
+      - name: Verify Migration Status
+        run: |
+          echo "🔍 Verificando estado de las migraciones..."
+          
+          # Listar migraciones aplicadas (requiere conexión a DB)
+          dotnet ef migrations list \
+            --project VoiceByAuribus.API/VoiceByAuribus-API.csproj \
+            --connection "${{ env.DB_CONNECTION }}" \
+            --no-build
+  
+  # ==============================================================================
+  # JOB 2: BUILD & PUSH (reutiliza workflow existente)
+  # ==============================================================================
+  build-and-push:
+    name: Build and Push Docker Image
+    needs: migrate  # Solo se ejecuta si migrate fue exitoso
+    uses: ./.github/workflows/build-and-push.yml
+    secrets: inherit  # Hereda todos los secrets
+  
+  # ==============================================================================
+  # JOB 3: DEPLOY A APP RUNNER
+  # ==============================================================================
+  deploy:
+    name: Deploy to App Runner
+    runs-on: ubuntu-latest
+    needs: build-and-push  # Solo se ejecuta si build-and-push fue exitoso
+    
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Get App Runner Service ARN
+        id: get-service-arn
+        run: |
+          SERVICE_ARN=$(aws apprunner list-services \
+            --region ${{ env.AWS_REGION }} \
+            --query "ServiceSummaryList[?ServiceName=='${{ env.PROJECT_NAME }}'].ServiceArn" \
+            --output text)
+          
+          if [ -z "$SERVICE_ARN" ]; then
+            echo "❌ Error: No se encontró el servicio App Runner '${{ env.PROJECT_NAME }}'"
+            exit 1
+          fi
+          
+          echo "SERVICE_ARN=$SERVICE_ARN" >> $GITHUB_ENV
+          echo "✅ App Runner Service: $SERVICE_ARN"
+      
+      - name: Deploy to App Runner
+        run: |
+          echo "🚀 Iniciando deployment en App Runner..."
+          
+          OPERATION_ID=$(aws apprunner start-deployment \
+            --service-arn ${{ env.SERVICE_ARN }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'OperationId' \
+            --output text)
+          
+          echo "✅ Deployment iniciado"
+          echo "🔄 Operation ID: $OPERATION_ID"
+          echo "OPERATION_ID=$OPERATION_ID" >> $GITHUB_ENV
+      
+      - name: Wait for Deployment
+        run: |
+          echo "⏳ Esperando a que el deployment complete (puede tomar 3-5 minutos)..."
+          
+          MAX_ATTEMPTS=60
+          ATTEMPT=0
+          
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            STATUS=$(aws apprunner describe-service \
+              --service-arn ${{ env.SERVICE_ARN }} \
+              --region ${{ env.AWS_REGION }} \
+              --query 'Service.Status' \
+              --output text)
+            
+            echo "Status: $STATUS (attempt $ATTEMPT/$MAX_ATTEMPTS)"
+            
+            if [ "$STATUS" == "RUNNING" ]; then
+              echo "✅ Deployment completado exitosamente"
+              break
+            elif [ "$STATUS" == "OPERATION_IN_PROGRESS" ]; then
+              sleep 10
+              ATTEMPT=$((ATTEMPT + 1))
+            else
+              echo "❌ Deployment falló con estado: $STATUS"
+              exit 1
+            fi
+          done
+          
+          if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+            echo "❌ Timeout esperando el deployment"
+            exit 1
+          fi
+      
+      - name: Get Service URL
+        id: get-url
+        run: |
+          SERVICE_URL=$(aws apprunner describe-service \
+            --service-arn ${{ env.SERVICE_ARN }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Service.ServiceUrl' \
+            --output text)
+          
+          echo "SERVICE_URL=$SERVICE_URL" >> $GITHUB_ENV
+          echo "🌐 Service URL: https://$SERVICE_URL"
+      
+      - name: Verify Health Endpoint
+        run: |
+          echo "🏥 Verificando health endpoint..."
+          sleep 10  # Dar tiempo a que el servicio esté listo
+          
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://${{ env.SERVICE_URL }}/api/v1/health")
+          
+          if [ "$HTTP_CODE" == "200" ]; then
+            echo "✅ Health check: OK (200)"
+          else
+            echo "⚠️ Health check retornó: $HTTP_CODE (esperado: 200)"
+            echo "El servicio puede estar aún inicializando"
+          fi
+      
+      - name: Deployment Summary
+        if: success()
+        run: |
+          echo "=========================================="
+          echo "✅ DEPLOYMENT EXITOSO"
+          echo "=========================================="
+          echo "Imagen: ${{ needs.build-and-push.outputs.image-uri }}"
+          echo "Tag: ${{ needs.build-and-push.outputs.image-tag }}"
+          echo "Service URL: https://${{ env.SERVICE_URL }}"
+          echo ""
+          echo "Endpoints:"
+          echo "  - Health: https://${{ env.SERVICE_URL }}/api/v1/health"
+          echo ""
+          echo "Monitoreo:"
+          echo "  - CloudWatch: https://console.aws.amazon.com/cloudwatch/home?region=${{ env.AWS_REGION }}"
+          echo "  - App Runner: https://console.aws.amazon.com/apprunner/home?region=${{ env.AWS_REGION }}"
+          echo "=========================================="
+
+# ==============================================================================
+# CONFIGURACIÓN DE SECRETS REQUERIDOS EN GITHUB
+# ==============================================================================
+# Ir a: Settings > Secrets and variables > Actions > New repository secret
+#
+# Secrets requeridos:
+# - AWS_ACCESS_KEY_ID: Access key de IAM user con permisos de:
+#   * SecretsManager:GetSecretValue
+#   * ECR:GetAuthorizationToken, BatchCheckLayerAvailability, InitiateLayerUpload, etc.
+#   * AppRunner:StartDeployment, DescribeService, ListServices
+#
+# - AWS_SECRET_ACCESS_KEY: Secret key correspondiente
+#
+# - (Opcional) SLACK_WEBHOOK_URL: Para notificaciones de deployment
+# ==============================================================================

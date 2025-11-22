@@ -1,10 +1,18 @@
 name: Build and Push to ECR
 
 on:
-  push:
-    branches:
-      - main
+  # NOTE: on:push disabled to prevent duplicate runs
+  # This workflow is called by deploy-production.yml which handles migrations first
+  # If you need to build manually, use workflow_dispatch from GitHub UI
   workflow_dispatch:  # Allow manual trigger
+  workflow_call:  # Make this workflow reusable
+    outputs:
+      image-uri:
+        description: "Full URI of the pushed Docker image"
+        value: ${{ jobs.build-and-push.outputs.image-uri }}
+      image-tag:
+        description: "Short SHA tag used for the image"
+        value: ${{ jobs.build-and-push.outputs.image-tag }}
 
 env:
   AWS_REGION: us-east-1
@@ -13,6 +21,9 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest  # Native AMD64 runner
+    outputs:
+      image-uri: ${{ steps.build-push.outputs.image-uri }}
+      image-tag: ${{ steps.build-push.outputs.image-tag }}
 
     steps:
       - name: Checkout code
@@ -33,6 +44,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push Docker image
+        id: build-push
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: sha-${{ github.sha }}
@@ -40,6 +52,8 @@ jobs:
           # Extract short SHA (first 7 characters)
           SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
 
+          echo "🔨 Building Docker image for AMD64..."
+          
           docker buildx build \
             --platform linux/amd64 \
             --file VoiceByAuribus.API/Dockerfile.apprunner \
@@ -48,13 +62,21 @@ jobs:
             --push \
             .
 
-          echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
+          echo "✅ Docker image built and pushed successfully"
+          
+          # Set outputs for reusable workflow
+          IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:sha-${SHORT_SHA}"
+          echo "image-uri=${IMAGE_URI}" >> $GITHUB_OUTPUT
+          echo "image-tag=sha-${SHORT_SHA}" >> $GITHUB_OUTPUT
 
       - name: Output image URI
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          echo "Image pushed successfully!"
+          echo "=========================================="
+          echo "✅ IMAGE PUSHED SUCCESSFULLY"
+          echo "=========================================="
           echo "Latest: $ECR_REGISTRY/$ECR_REPOSITORY:latest"
-          echo "SHA: $ECR_REGISTRY/$ECR_REPOSITORY:sha-${{ env.SHORT_SHA }}"
+          echo "SHA: ${{ steps.build-push.outputs.image-uri }}"
           echo "Commit: ${{ github.sha }}"
+          echo "=========================================="
