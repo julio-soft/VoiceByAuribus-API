@@ -167,14 +167,32 @@ jobs:
       - name: Verify Lambda function exists
         run: |
           echo "🔍 Verifying Lambda function exists..."
+          echo "Function name: ${{ env.FUNCTION_NAME }}"
+          echo "Region: ${{ env.AWS_REGION }}"
+          echo ""
 
-          if aws lambda get-function \
+          # Try to get function configuration (requires lambda:GetFunction permission)
+          if aws lambda get-function-configuration \
             --function-name ${{ env.FUNCTION_NAME }} \
-            --region ${{ env.AWS_REGION }} &> /dev/null; then
+            --region ${{ env.AWS_REGION }} > /dev/null 2>&1; then
             echo "✅ Lambda function found: ${{ env.FUNCTION_NAME }}"
+
+            # Display current configuration
+            echo ""
+            echo "Current function configuration:"
+            aws lambda get-function-configuration \
+              --function-name ${{ env.FUNCTION_NAME }} \
+              --region ${{ env.AWS_REGION }} \
+              --query '{FunctionName:FunctionName,Runtime:Runtime,Handler:Handler,LastModified:LastModified}' \
+              --output table
           else
-            echo "❌ Error: Lambda function '${{ env.FUNCTION_NAME }}' not found"
-            echo "Please create the function first or update FUNCTION_NAME in workflow"
+            echo "❌ Error: Lambda function '${{ env.FUNCTION_NAME }}' not found or no permission to access it"
+            echo ""
+            echo "Please verify:"
+            echo "1. The function exists in region ${{ env.AWS_REGION }}"
+            echo "2. The IAM user has lambda:GetFunction permission"
+            echo "3. The function name is correct: ${{ env.FUNCTION_NAME }}"
+            echo "4. The resource pattern in IAM policy matches: arn:aws:lambda:${{ env.AWS_REGION }}:*:function:VoiceByAuribus-*"
             exit 1
           fi
 
