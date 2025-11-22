@@ -255,7 +255,7 @@ secrets: inherit  # Hereda AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY
 
 #### Job 3: deploy
 
-**Responsabilidad**: Verificar y monitorear el deployment
+**Responsabilidad**: Verificar y monitorear el auto-deployment de App Runner
 
 **Configuración**:
 ```yaml
@@ -269,30 +269,32 @@ needs: build-and-push  # Solo ejecuta si build fue exitoso
    aws apprunner list-services \
      --query "ServiceSummaryList[?ServiceName=='voice-by-auribus-api'].ServiceArn"
    ```
-3. **Trigger Deployment** (backup si auto-deploy falla):
-   ```bash
-   aws apprunner start-deployment --service-arn $SERVICE_ARN
-   ```
-4. **Wait for Deployment** (max 10 minutos):
+3. **Wait for Auto-Deployment** (NO trigger manual):
+   - App Runner detecta tag `:latest` → inicia auto-deployment
+   - Workflow solo espera a que complete
+   - Sleep 15s inicial para que auto-deployment comience
    - Poll status cada 10 segundos
    - Esperar hasta `Status == "RUNNING"`
-   - Timeout después de 60 intentos
-5. **Get Service URL**:
+   - Timeout después de 60 intentos (10 minutos)
+4. **Get Service URL**:
    ```bash
    aws apprunner describe-service --query 'Service.ServiceUrl'
    ```
-6. **Verify Health Endpoint**:
+5. **Verify Health Endpoint**:
    ```bash
    curl -s -o /dev/null -w "%{http_code}" "https://$SERVICE_URL/api/v1/health"
    ```
    - Esperado: HTTP 200
    - Advertencia si != 200
-7. **Deployment Summary**: Imprime detalles del deployment exitoso
+6. **Deployment Summary**: Imprime detalles del deployment exitoso
+
+**Importante**: Este job NO ejecuta `apprunner:StartDeployment` porque App Runner ya inició auto-deployment al detectar el nuevo tag `:latest` en ECR. El workflow solo monitorea el progreso.
 
 **Permisos IAM Requeridos**:
-- `apprunner:ListServices`
-- `apprunner:DescribeService`
-- `apprunner:StartDeployment`
+- `apprunner:ListServices` (para obtener ARN)
+- `apprunner:DescribeService` (para monitorear status)
+
+**Nota**: `apprunner:StartDeployment` está en la policy pero NO se usa activamente en el workflow porque App Runner auto-despliega al detectar `:latest`.
 
 ---
 

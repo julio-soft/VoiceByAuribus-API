@@ -174,27 +174,19 @@ jobs:
           
           echo "SERVICE_ARN=$SERVICE_ARN" >> $GITHUB_ENV
           echo "✅ App Runner Service: $SERVICE_ARN"
+          echo "ℹ️  App Runner auto-deployment triggered by :latest tag push"
       
-      - name: Deploy to App Runner
+      - name: Wait for Auto-Deployment
         run: |
-          echo "🚀 Iniciando deployment en App Runner..."
-          
-          OPERATION_ID=$(aws apprunner start-deployment \
-            --service-arn ${{ env.SERVICE_ARN }} \
-            --region ${{ env.AWS_REGION }} \
-            --query 'OperationId' \
-            --output text)
-          
-          echo "✅ Deployment iniciado"
-          echo "🔄 Operation ID: $OPERATION_ID"
-          echo "OPERATION_ID=$OPERATION_ID" >> $GITHUB_ENV
-      
-      - name: Wait for Deployment
-        run: |
-          echo "⏳ Esperando a que el deployment complete (puede tomar 3-5 minutos)..."
+          echo "⏳ Waiting for App Runner auto-deployment to complete..."
+          echo "ℹ️  Auto-deployment triggered by :latest tag detection"
+          echo ""
           
           MAX_ATTEMPTS=60
           ATTEMPT=0
+          
+          # Wait a bit for auto-deployment to start
+          sleep 15
           
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             STATUS=$(aws apprunner describe-service \
@@ -206,19 +198,19 @@ jobs:
             echo "Status: $STATUS (attempt $ATTEMPT/$MAX_ATTEMPTS)"
             
             if [ "$STATUS" == "RUNNING" ]; then
-              echo "✅ Deployment completado exitosamente"
+              echo "✅ Auto-deployment completed successfully"
               break
             elif [ "$STATUS" == "OPERATION_IN_PROGRESS" ]; then
               sleep 10
               ATTEMPT=$((ATTEMPT + 1))
             else
-              echo "❌ Deployment falló con estado: $STATUS"
+              echo "❌ Deployment failed with status: $STATUS"
               exit 1
             fi
           done
           
           if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
-            echo "❌ Timeout esperando el deployment"
+            echo "❌ Timeout waiting for auto-deployment"
             exit 1
           fi
       
