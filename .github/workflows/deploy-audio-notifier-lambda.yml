@@ -336,14 +336,11 @@ jobs:
             --query 'Configuration.FunctionArn' \
             --output text)
 
+          DEPLOYED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
           aws lambda tag-resource \
             --resource "$FUNCTION_ARN" \
-            --tags \
-              "DeployedAt=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-              "GitCommit=${{ steps.commit-info.outputs.SHORT_SHA }}" \
-              "GitBranch=${{ github.ref_name }}" \
-              "DeployedBy=GitHubActions" \
-              "WorkflowRun=${{ github.run_number }}"
+            --tags "DeployedAt=$DEPLOYED_AT,GitCommit=${{ steps.commit-info.outputs.SHORT_SHA }},GitBranch=${{ github.ref_name }},DeployedBy=GitHubActions,WorkflowRun=${{ github.run_number }}"
 
           echo "✅ Lambda function tagged successfully"
 
