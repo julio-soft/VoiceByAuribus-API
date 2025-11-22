@@ -62,6 +62,11 @@ jobs:
           dotnet tool install --global dotnet-ef
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
       
+      - name: Restore NuGet Packages
+        run: |
+          echo "📦 Restaurando paquetes NuGet..."
+          dotnet restore VoiceByAuribus.API/VoiceByAuribus-API.csproj
+      
       - name: Apply Migrations
         run: |
           echo "📦 Aplicando migraciones a base de datos de producción..."

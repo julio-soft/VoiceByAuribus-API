@@ -131,14 +131,15 @@ Este workflow implementa el patrón "Database First" que garantiza:
      --query 'SecretString' | jq -r '.ConnectionStrings__DefaultConnection'
    ```
 5. Install EF Core Tools: `dotnet tool install --global dotnet-ef`
-6. **Apply Migrations**:
+6. **Restore NuGet Packages**: `dotnet restore VoiceByAuribus.API/VoiceByAuribus-API.csproj`
+7. **Apply Migrations**:
    ```bash
    dotnet ef database update \
      --project VoiceByAuribus.API/VoiceByAuribus-API.csproj \
      --connection "$DB_CONNECTION" \
      --verbose
    ```
-7. Verify Migration Status: `dotnet ef migrations list`
+8. Verify Migration Status: `dotnet ef migrations list`
 
 **Fail-Fast Behavior**:
 - ❌ Si connection string no se encuentra → Exit 1 → Jobs 2 y 3 cancelados
@@ -927,6 +928,27 @@ git push origin main
 3. Verificar permisos IAM:
    - User `github-actions-ecr-voicebyauribusapi` tiene `secretsmanager:GetSecretValue`
    - Resource ARN correcto en policy
+
+### Assets File Not Found (project.assets.json)
+
+**Síntoma**: Job `migrate` falla con "error NETSDK1004: Assets file 'project.assets.json' not found".
+
+**Causa**: NuGet packages no fueron restaurados antes de ejecutar `dotnet ef`.
+
+**Solución**: El workflow incluye `dotnet restore` antes de aplicar migrations. Si el error persiste:
+
+1. Verificar que el step "Restore NuGet Packages" se ejecutó correctamente
+2. Verificar conectividad a NuGet.org desde GitHub Actions
+3. Verificar que `.csproj` no tiene errores de configuración
+
+**Este error ya está resuelto** en la versión actual del workflow con el step:
+
+```yaml
+- name: Restore NuGet Packages
+  run: |
+    echo "📦 Restaurando paquetes NuGet..."
+    dotnet restore VoiceByAuribus.API/VoiceByAuribus-API.csproj
+```
 
 ---
 
