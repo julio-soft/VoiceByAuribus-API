@@ -7,6 +7,11 @@ on:
       - test
   workflow_dispatch:  # Permite ejecutar manualmente desde GitHub UI (con validación de rama)
 
+# Prevent concurrent deployments to avoid migration lock conflicts
+concurrency:
+  group: ${{ github.ref }}-deployment
+  cancel-in-progress: false  # Wait for previous deployment to finish
+
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: voice-by-auribus-api
@@ -112,17 +117,30 @@ jobs:
         run: |
           echo "📦 Aplicando migraciones a base de datos de ${{ env.ASPNETCORE_ENVIRONMENT }}..."
           
-          dotnet ef database update \
-            --project VoiceByAuribus.API/VoiceByAuribus-API.csproj \
-            --connection "${{ env.DB_CONNECTION }}" \
-            --verbose
+          MAX_RETRIES=3
+          RETRY=0
+          SUCCESS=false
           
-          if [ $? -eq 0 ]; then
-            echo "✅ Migraciones aplicadas exitosamente"
-          else
-            echo "❌ Error aplicando migraciones"
-            exit 1
-          fi
+          while [ $RETRY -lt $MAX_RETRIES ] && [ "$SUCCESS" = "false" ]; do
+            if [ $RETRY -gt 0 ]; then
+              echo "⚠️  Retry attempt $RETRY/$MAX_RETRIES after waiting 30 seconds..."
+              sleep 30
+            fi
+            
+            if dotnet ef database update \
+              --project VoiceByAuribus.API/VoiceByAuribus-API.csproj \
+              --connection "${{ env.DB_CONNECTION }};Command Timeout=60" \
+              --verbose; then
+              SUCCESS=true
+              echo "✅ Migraciones aplicadas exitosamente"
+            else
+              RETRY=$((RETRY + 1))
+              if [ $RETRY -eq $MAX_RETRIES ]; then
+                echo "❌ Error aplicando migraciones después de $MAX_RETRIES intentos"
+                exit 1
+              fi
+            fi
+          done
       
       - name: Verify Migration Status
         run: |
