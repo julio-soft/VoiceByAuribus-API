@@ -130,9 +130,9 @@ jobs:
           # Obtener lista de migraciones en el código
           echo "📋 Migraciones en el código:"
           CODE_MIGRATIONS=$(dotnet ef migrations list \
-            --project VoiceByAuribus.API/VoiceByAuribus-API.csproj \
             --no-build \
-            --no-connect 2>&1)
+            --no-connect \
+            --project VoiceByAuribus.API/VoiceByAuribus-API.csproj 2>&1)
           
           echo "$CODE_MIGRATIONS"
           CODE_COUNT=$(echo "$CODE_MIGRATIONS" | grep -E '^[0-9]{14}_' | wc -l | tr -d ' ')
@@ -141,13 +141,15 @@ jobs:
           echo "🔗 Consultando base de datos..."
           echo "   Migraciones en código: $CODE_COUNT"
           
-          # Ejecutar database update en modo script (SQL) para ver qué haría
-          # Sin --script solo vemos verbose output
+          # Ejecutar database update directamente
+          # EF Core es idempotente - si no hay pendientes, no hace nada
+          echo ""
+          echo "Ejecutando: dotnet ef database update..."
           UPDATE_OUTPUT=$(dotnet ef database update \
-            --project VoiceByAuribus.API/VoiceByAuribus-API.csproj \
-            --connection "${{ env.DB_CONNECTION }};Command Timeout=60" \
             --no-build \
-            --verbose 2>&1 || echo "UPDATE_FAILED")
+            --verbose \
+            --project VoiceByAuribus.API/VoiceByAuribus-API.csproj \
+            --connection "${{ env.DB_CONNECTION }};Command Timeout=60" 2>&1 || echo "UPDATE_FAILED")
           
           echo "$UPDATE_OUTPUT"
           
