@@ -122,76 +122,38 @@ jobs:
           dotnet restore VoiceByAuribus.API/VoiceByAuribus-API.csproj
           dotnet build VoiceByAuribus.API/VoiceByAuribus-API.csproj --no-restore --configuration Release
 
-      - name: Check Pending Migrations
+      - name: Apply Database Migrations
         id: check-migrations
         run: |
-          echo "🔍 Verificando si hay migraciones pendientes..."
-          
-          # Obtener lista de migraciones en el código
-          echo "📋 Migraciones en el código:"
-          CODE_MIGRATIONS=$(dotnet ef migrations list \
-            --no-build \
-            --no-connect \
-            --project VoiceByAuribus.API/VoiceByAuribus-API.csproj 2>&1)
-          
-          echo "$CODE_MIGRATIONS"
-          CODE_COUNT=$(echo "$CODE_MIGRATIONS" | grep -E '^[0-9]{14}_' | wc -l | tr -d ' ')
-          
+          echo "🔍 Aplicando migraciones de base de datos..."
           echo ""
-          echo "🔗 Consultando base de datos..."
-          echo "   Migraciones en código: $CODE_COUNT"
           
           # Ejecutar database update directamente
           # EF Core es idempotente - si no hay pendientes, no hace nada
-          echo ""
-          echo "Ejecutando: dotnet ef database update..."
-          UPDATE_OUTPUT=$(dotnet ef database update \
-            --no-build \
-            --verbose \
+          # Usamos set +e para capturar el exit code sin fallar
+          set +e
+          
+          dotnet ef database update \
             --project VoiceByAuribus.API/VoiceByAuribus-API.csproj \
-            --connection "${{ env.DB_CONNECTION }};Command Timeout=60" 2>&1 || echo "UPDATE_FAILED")
+            --connection "${{ env.DB_CONNECTION }}" \
+            --verbose
           
-          echo "$UPDATE_OUTPUT"
+          EXIT_CODE=$?
+          set -e
           
-          # Analizar output para detectar si aplicó migraciones
-          # EF Core muestra "Applying migration" cuando aplica algo
-          # O "No migrations were applied" / "database is already up to date"
-          if echo "$UPDATE_OUTPUT" | grep -qi "Applying migration\|Executed DbCommand"; then
-            # Aplicó migraciones - significa que SÍ había pendientes
+          if [ $EXIT_CODE -eq 0 ]; then
             echo ""
-            echo "⚠️  DETECTADAS Y APLICADAS migraciones pendientes"
-            echo "HAS_PENDING=true" >> $GITHUB_OUTPUT
-            
-            # Contar cuántas aplicó
-            APPLIED=$(echo "$UPDATE_OUTPUT" | grep -c "Applying migration" || echo "unknown")
-            echo "   Migraciones aplicadas: $APPLIED"
-          elif echo "$UPDATE_OUTPUT" | grep -qi "No migrations were applied\|already.*up.*to.*date\|No pending model changes"; then
-            # No aplicó nada - BD actualizada
-            echo ""
-            echo "✅ No hay migraciones pendientes - la base de datos está actualizada"
+            echo "✅ Base de datos actualizada exitosamente"
             echo "HAS_PENDING=false" >> $GITHUB_OUTPUT
-          elif echo "$UPDATE_OUTPUT" | grep -qi "UPDATE_FAILED\|error\|exception"; then
-            # Hubo error - ser conservador y asumir que hay pendientes
-            echo ""
-            echo "❌ Error al verificar migraciones - se asumirá que hay pendientes"
-            echo "HAS_PENDING=true" >> $GITHUB_OUTPUT
           else
-            # Output no claro - ser conservador
             echo ""
-            echo "⚠️  No se pudo determinar el estado - se asumirá que hay pendientes"
-            echo "HAS_PENDING=true" >> $GITHUB_OUTPUT
+            echo "❌ Error aplicando migraciones (exit code: $EXIT_CODE)"
+            exit $EXIT_CODE
           fi
 
-      - name: Verify Migrations Applied
-        if: steps.check-migrations.outputs.HAS_PENDING == 'true'
+      - name: Migration Summary
         run: |
-          echo "✅ Migraciones verificadas y aplicadas en el paso anterior"
-          echo "   El comando 'database update' ya aplicó los cambios necesarios"
-
-      - name: Skip Migrations (Already Applied)
-        if: steps.check-migrations.outputs.HAS_PENDING == 'false'
-        run: |
-          echo "ℹ️  No hay migraciones para aplicar. Continuando con el deployment..."
+          echo "✅ Migraciones procesadas. Continuando con el deployment..."
   
   # ==============================================================================
   # JOB 2: BUILD & PUSH (reutiliza workflow existente)
