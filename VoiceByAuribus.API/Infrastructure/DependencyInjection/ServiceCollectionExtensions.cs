@@ -23,6 +23,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISqsService, SqsService>();
         services.AddSingleton<SqsQueueResolver>(); // SQS queue name to URL resolver with caching
         services.AddScoped<IHealthCheckService, HealthCheckService>();
+        services.AddSingleton<IEncryptionService, EncryptionService>(); // Encryption service with master key from AWS Secrets Manager
 
         services.AddDefaultAWSOptions(configuration.GetAWSOptions());
         services.AddAWSService<IAmazonS3>();

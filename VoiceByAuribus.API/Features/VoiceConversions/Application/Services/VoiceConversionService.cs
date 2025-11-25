@@ -11,6 +11,8 @@ using VoiceByAuribus_API.Features.VoiceConversions.Application.Dtos;
 using VoiceByAuribus_API.Features.VoiceConversions.Application.Helpers;
 using VoiceByAuribus_API.Features.VoiceConversions.Application.Mappers;
 using VoiceByAuribus_API.Features.VoiceConversions.Domain;
+using VoiceByAuribus_API.Features.WebhookSubscriptions.Application.Services;
+using VoiceByAuribus_API.Features.WebhookSubscriptions.Domain;
 using VoiceByAuribus_API.Shared.Infrastructure.Data;
 using VoiceByAuribus_API.Shared.Infrastructure.Services;
 using VoiceByAuribus_API.Shared.Interfaces;
@@ -28,7 +30,8 @@ public class VoiceConversionService(
     ICurrentUserService currentUserService,
     IDateTimeProvider dateTimeProvider,
     IConfiguration configuration,
-    ILogger<VoiceConversionService> logger) : IVoiceConversionService
+    ILogger<VoiceConversionService> logger,
+    IWebhookEventPublisher? webhookEventPublisher = null) : IVoiceConversionService
 {
     private readonly string _inferenceQueueName = configuration["AWS:SQS:VoiceInferenceQueue"]
         ?? throw new InvalidOperationException("AWS:SQS:VoiceInferenceQueue configuration is required");
@@ -231,6 +234,31 @@ public class VoiceConversionService(
         }
 
         await context.SaveChangesAsync();
+
+        // Publish webhook event (if webhooks are registered)
+        // Note: We use try-catch to prevent webhook failures from affecting the conversion
+        try
+        {
+            if (webhookEventPublisher != null)
+            {
+                var webhookEvent = isSuccess
+                    ? WebhookEvent.ConversionCompleted
+                    : WebhookEvent.ConversionFailed;
+
+                await webhookEventPublisher.PublishAsync(conversion, webhookEvent);
+
+                logger.LogDebug(
+                    "Webhook event published: ConversionId={ConversionId}, Event={Event}",
+                    conversion.Id, webhookEvent);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "Failed to publish webhook event (non-critical): ConversionId={ConversionId}",
+                conversion.Id);
+            // Continue - webhook failure should not fail the conversion
+        }
     }
 
     public async Task<(int Processed, int Skipped)> ProcessPendingConversionsAsync(CancellationToken cancellationToken = default)

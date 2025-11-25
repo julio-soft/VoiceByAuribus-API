@@ -12,6 +12,7 @@ using VoiceByAuribus_API.Features.Auth;
 using VoiceByAuribus_API.Features.Voices;
 using VoiceByAuribus_API.Features.AudioFiles;
 using VoiceByAuribus_API.Features.VoiceConversions;
+using VoiceByAuribus_API.Features.WebhookSubscriptions;
 using VoiceByAuribus_API.Features.Auth.Presentation;
 using VoiceByAuribus_API.Infrastructure.DependencyInjection;
 using VoiceByAuribus_API.Shared.Infrastructure.Middleware;
@@ -45,6 +46,7 @@ builder.Services.AddAuthFeature();
 builder.Services.AddVoicesFeature();
 builder.Services.AddAudioFilesFeature();
 builder.Services.AddVoiceConversionsFeature();
+builder.Services.AddWebhookSubscriptionsFeature();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 Log.Information("Features loaded successfully");

@@ -8,6 +8,7 @@ using VoiceByAuribus_API.Shared.Domain;
 using VoiceByAuribus_API.Features.Voices.Domain;
 using VoiceByAuribus_API.Features.AudioFiles.Domain;
 using VoiceByAuribus_API.Features.VoiceConversions.Domain;
+using VoiceByAuribus_API.Features.WebhookSubscriptions.Domain;
 
 namespace VoiceByAuribus_API.Shared.Infrastructure.Data;
 
@@ -29,6 +30,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<AudioFile> AudioFiles => Set<AudioFile>();
     public DbSet<AudioPreprocessing> AudioPreprocessings => Set<AudioPreprocessing>();
     public DbSet<VoiceConversion> VoiceConversions => Set<VoiceConversion>();
+    public DbSet<WebhookSubscription> WebhookSubscriptions => Set<WebhookSubscription>();
+    public DbSet<WebhookDeliveryLog> WebhookDeliveryLogs => Set<WebhookDeliveryLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

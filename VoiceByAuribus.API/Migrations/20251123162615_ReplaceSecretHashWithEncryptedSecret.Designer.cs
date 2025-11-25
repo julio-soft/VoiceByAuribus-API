@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using VoiceByAuribus_API.Shared.Infrastructure.Data;
@@ -11,9 +12,11 @@ using VoiceByAuribus_API.Shared.Infrastructure.Data;
 namespace VoiceByAuribus_API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251123162615_ReplaceSecretHashWithEncryptedSecret")]
+    partial class ReplaceSecretHashWithEncryptedSecret
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -285,13 +288,6 @@ namespace VoiceByAuribus_API.Migrations
                     b.Property<int?>("DurationMs")
                         .HasColumnType("integer");
 
-                    b.Property<Guid?>("EntityId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("EntityType")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
                     b.Property<string>("ErrorMessage")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
@@ -299,11 +295,6 @@ namespace VoiceByAuribus_API.Migrations
                     b.Property<string>("Event")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
 
                     b.Property<int?>("HttpStatusCode")
                         .HasColumnType("integer");
@@ -322,12 +313,6 @@ namespace VoiceByAuribus_API.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("bytea");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -337,20 +322,19 @@ namespace VoiceByAuribus_API.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("VoiceConversionId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("WebhookSubscriptionId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EntityId");
-
-                    b.HasIndex("EntityType");
-
-                    b.HasIndex("EventType");
-
                     b.HasIndex("NextRetryAt");
 
                     b.HasIndex("Status");
+
+                    b.HasIndex("VoiceConversionId");
 
                     b.HasIndex("WebhookSubscriptionId");
 
@@ -465,11 +449,18 @@ namespace VoiceByAuribus_API.Migrations
 
             modelBuilder.Entity("VoiceByAuribus_API.Features.WebhookSubscriptions.Domain.WebhookDeliveryLog", b =>
                 {
+                    b.HasOne("VoiceByAuribus_API.Features.VoiceConversions.Domain.VoiceConversion", "VoiceConversion")
+                        .WithMany()
+                        .HasForeignKey("VoiceConversionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("VoiceByAuribus_API.Features.WebhookSubscriptions.Domain.WebhookSubscription", "WebhookSubscription")
                         .WithMany("DeliveryLogs")
                         .HasForeignKey("WebhookSubscriptionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("VoiceConversion");
 
                     b.Navigation("WebhookSubscription");
                 });
