@@ -1,0 +1,71 @@
+---
+id: get-audio-file-by-id
+title: "Get audio file details"
+description: "Retrieves detailed information about a specific audio file including its processing status"
+sidebar_label: "Get audio file details"
+hide_title: true
+hide_table_of_contents: true
+api: eJy1Vt9v4zYM/lcEPm2A0zhZ0m1+Wnq3K7qXFf1xB6woDozFJLqzJVei0ssC/+8DZbdJmmI9DNhTbIsiP37kR2YLjMsAxR3MojZOfTAVBbjPQFMovWnYOAsFXBF7Q2sKShOjqUgrYxfO1ygGCucuskIVGirNwpQKk7OFqUgZW1ZRG7tUhoNqvCspBHkNjBwDZOAa8snPhYYCzokTFEFytrnQkEGDHmti8gJ0CxZrggKMHBlB1yCvIANPD9F40lCwj/QyhVtrHiIpo8myWRjyyi0Ur2gPK2QQyhXVCMUWeNNIlMDe2CVk0GULBcRoNLTtvQQMjbOBgtiP81x+DoNex1LSXcSq2ijfk6j36en4FBpKZ5ksixNsmsqUiZPhlyCetsfI3PwLlSz0eGGQTYcjdCH3DOfOVYQWMqBvWDcVdQS1GWjk7/Bo9Nt8/De2n/HA6WlOv0zyfEDjX+eDyUhPBvjz6HQwmZyeTqeTSZ7nI2gzkIufuwY4hnQI4U9vlsZilYKlK/sB680gQRnI6ckjrsV735KvuCYba1FJQ1Z3X3adnFoP9UZISdo41s+76D1ZPm7/N2jp/LYZlJ6QSX9G/tdaaGQasEm5HiJ4j0wKrVZyqh5XZFPc1IOPGFRsKoea9EH4cT6eDvLRYDS9GeXFT9Miz/+Cts2ADSeDZ6W+Z/f6wVWvEWhbOZ/ko2OV3FqMvHLe/E0aktHk2Gi204x1rBYuWp1C1sQrJ5NjSal3ZRgUMMTGDNej4a7IYbg1uhWNk18/zZLoKyhgxdyEYih3TjB6M4/hxLgjDi+907FML2328m5gXBq7HLzh47ozA5kfgcroDW8SkjNCT34WBf3d/f7xtSi/k+K+0XMbCIKn0ZX0nowg6x8+PDXHH59ujkUivtT4JFeda8XuK1nl5ozGklYL7+q+QXklWu6mkuo4TPzLIkho+tJ/dKaks82s40DNLi9eI3IhMnAiz2Sv3jkrRUnbxGrVVftyJ5fOTW8CBYxO8n5mYpk00W+Fp7DXsWmcl4agGo0UKnRffjsozov6744ks8YFrtHueT8nfn14H+S33c3y/3dz9g3A9I2HTYVG+rJLadvr4A6wMULcCDLY0wJkUJg0qFYusNhtt3MMdOurtpXPD5G8NOZ9Bmv0BudS27staBPkWUOxwCq83LL7mf9w1e/jH9X3bYNXs+k/opXxusYqyhtk8JU23X+A9r7NYEWoySeA3cGsLKnhvStHK1UU9jw6zn+/gbb9B4nkHCE=
+sidebar_class_name: "get api-method"
+info_path: docs/api/voicebyauribus-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get audio file details"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/api/v1/audio-files/{id}"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Retrieves detailed information about a specific audio file including its processing status
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"id","in":"path","required":true,"description":"Unique identifier of the audio file","schema":{"type":"string","format":"uuid"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successfully retrieved audio file details","content":{"application/json":{"schema":{"type":"object","properties":{"success":{"type":"boolean","example":true},"data":{"type":"object","properties":{"id":{"type":"string","format":"uuid","description":"Unique identifier of the audio file","example":"660e8400-e29b-41d4-a716-446655440001"},"file_name":{"type":"string","description":"Original filename","example":"my-audio-file.wav"},"status":{"type":"string","enum":["pending","processing","ready","failed"],"description":"Current processing status of the audio file","example":"ready"},"created_at":{"type":"string","format":"date-time","description":"Date and time when the file was uploaded","example":"2025-01-15T10:35:00Z"}},"title":"AudioFileDto"}},"title":"AudioFileResponse"}}}},"401":{"description":"Unauthorized"},"404":{"description":"Audio file not found"}}}
+>
+  
+</StatusCodes>
+
+
+      

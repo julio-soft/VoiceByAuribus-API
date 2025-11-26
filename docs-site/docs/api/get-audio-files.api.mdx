@@ -1,0 +1,63 @@
+---
+id: get-audio-files
+title: "List your audio files"
+description: "Retrieves all audio files you have uploaded"
+sidebar_label: "List your audio files"
+hide_title: true
+hide_table_of_contents: true
+api: eJyVVWFv2zYQ/SvEfZZsObO9TZ+WtmvRYcCCJlmBBkZxFs8WW4lUyaNTz9B/H45yYzkJFuyTZfHx3vHde9QBGLcByju4jNo49dY0FGCVgaZQedOxcRZK+EDsDe0oKGwahQm6Eajau6hq3JGKXeNQk4YMXEceZed7DSW8I061h9IZeAqds4EClAe4KAr5OWe7jlVFIWxi0+yVP1LrMS1kUDnLZFl2Y9c1pkqM0y9BShwgVDW1KE+87whKcOsvVDFk0Hnpj83QQBi4RsC1cw2hhQzoO7ZdQ1Cyj9RnoJHHFdF73EMGhqkNLzMZPcIE9sZuIYON8y0ylBCjEe3Olbi15lskZTRZNhtDXrmN4ppGWoz7hOWyoF/mRZHTxa/rfD7T8xx/ni3z+Xy5XCzm86IoZtBnIBs/W2zpuZbOW/jLm62x2CSytGVM2O7z1Eouq5N73En1wMgxPFeabGzFbB1ZPbzpvBP9hz+eUIuiGzQN6ac2fB29J8vqtEkNXC/IMtTtM6g8IZP+jPyfs9DIlLNJZz3v4A0yKbRayaq6r8kmXmFU9xjGKTjRXxQXi7yY5bPFzawof1qURfEJ+j4DNpwAD/l4ww76Z1f+NIE/HJMjkD6DeTF7mp1bi5Fr580/pBNHS1w7yeGWkieRayhhip2Z7mbT0/AkU4H8jrxcBweIvoESauYulFOBTzB6s45hYtwTWa6807FKf/rs8d7AuDV2m79Q43qAQb+SRqroDe9TJ68IPfnLKI3frcbL1xLyIV1j0MNkpQM5VoJJtBMIsuPD2x/z/uPjzVPfSy11MSnUUFqx+0pWuTWjsaTVxrv26DmuJZ7DBaQGDZP0xm5c6uY4zL+dqejV/nLQQF1evX9OyI0420niEl69dlaGIrXFeMM9fXVKwFDmCIESZpPieD1ilWw+5Bx+0F7HrnNevEAtGhlUGN78djacR/M/LcnJOhe4RTuqLv6Uj4F/dE2fHe9wurX/5yflOFCm7zztGjTis6HFw9HSd4CdESFmkMHY1qsMahdYEIfDGgPd+qbv5fW3SF4stspgh97gWqZ0t+ozqAk1+eS+r7QX8aqKOtFsh01Ml//jb4748iFr736/gb7/F1CDhXM=
+sidebar_class_name: "get api-method"
+info_path: docs/api/voicebyauribus-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"List your audio files"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/api/v1/audio-files"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Retrieves all audio files you have uploaded
+
+<ParamsDetails
+  parameters={undefined}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successfully retrieved audio files","content":{"application/json":{"schema":{"type":"object","properties":{"success":{"type":"boolean","example":true},"data":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string","format":"uuid","description":"Unique identifier of the audio file","example":"660e8400-e29b-41d4-a716-446655440001"},"file_name":{"type":"string","description":"Original filename","example":"my-audio-file.wav"},"status":{"type":"string","enum":["pending","processing","ready","failed"],"description":"Current processing status of the audio file","example":"ready"},"created_at":{"type":"string","format":"date-time","description":"Date and time when the file was uploaded","example":"2025-01-15T10:35:00Z"}},"title":"AudioFileDto"}}},"title":"AudioFileListResponse"}}}},"401":{"description":"Unauthorized"}}}
+>
+  
+</StatusCodes>
+
+
+      

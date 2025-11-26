@@ -1,0 +1,71 @@
+---
+id: get-voice-by-id
+title: "Get voice model details"
+description: "Retrieves detailed information about a specific voice model"
+sidebar_label: "Get voice model details"
+hide_title: true
+hide_table_of_contents: true
+api: eJylVm1v4zYM/isCP22A0zhZ0u38ael1V3QftqIvd8CKYmAsJtGdLbkS1bss8H8fKDttXm7rYfuS2BJFPnpIPvQGGJcBint470xJAR4y0BRKbxo2zkIB18Te0BMFpYnRVKSVsQvnaxQDhXMXWaEKDZVmYUr1JH5U7TRVkIFryCfDSw0FXBCnMGfrSw0ZNOixJiYvADZgsSYowMiWkdAN8goy8PQYjScNBftIh/jurHmMpIwmy2ZhyCu3ULyiAyChXFGNUGyA142ECeyNXUIG3V2ggBiNhrZ9kIihcTZQEPtxnsvfftSbWJYUwiJW1Vr5niK9G7OnK0AGpbNMlsULNk1lysTI8GMQV5tjaG7+kUoWgrzwx6YDErqYO4Zz5ypCCxnQF6ybijqK2gw08jd4NPp1Qv4j38+AYDrN6adJng9o/GY+mIz0ZIA/jk4Hk8np6XQ6meR5nkOb9ek/hrMf/jes6bWIV94tKATjLFbqHdVYkUp1J2H23B1Hs7GqcL5l8jD6+cvbPohyhR5LJm8CmzLswXlbEXqFVqtmF9iiA5bOZ8KnrDmvLHrf91Y6QoEsp4Ug+EtPyKT/RP7X3GlkGrCp6YjBc2RKrmVXfV6RPSRTfcag+jh7Nxnn4+kgHw1G09tRXvyQF3n+B7RtBmw4GSSWz9kdL173LQVtK3uTfHTcVHcWI6+cN3+RhmQ0OTZ6v4PTOlYLF61O8WrilROZWVIqdVGPAobYmOHTaJjuF4Ybo1uRA/JPW92JvoICVsxNKIZifoLRm3kMJ8YdsXflnY5lemmzw7OBcWnscvCKj5vODERqApXRG14nJGeEnvwsCvD7h93tG9GIrml3jZ4LQBBsVS4pQzKCrH94ty2LXz/cHsH5XXyp8UmuOteK3Seyys0ZjSWtFt7VqUQkO9L1nX6pjsNEvUyEhGY35WfrWceBml1dfo3Il17okvrWWUnKtvRnURunrrwT1TN22bvpTaCA0UneqyuWqRv6CbINexObxnmpBarRSKJCt/LzXnIO8v+yJTdrXOAa7Y73C+J/0PkDaXmW/f85Q/sUM33hYVOhkcrrQG/6Ir8HbIxQM5KfbpBnUBgt43zlAovJZjPHQHe+altZfozkpeoeMnhCbzrNu9+ANkGeNRQLrMKhAu7e6rvrfjB/r75xKHz1Jv0i2rWAxyrKG2Twidbd10D70GawItTkE8JuY1aW1PDOkaPRKv3zrAkXv9xC2/4NS68Scg==
+sidebar_class_name: "get api-method"
+info_path: docs/api/voicebyauribus-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get voice model details"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/api/v1/voices/{id}"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Retrieves detailed information about a specific voice model
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"id","in":"path","required":true,"description":"Unique identifier of the voice model","schema":{"type":"string","format":"uuid"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successfully retrieved voice model details","content":{"application/json":{"schema":{"type":"object","properties":{"success":{"type":"boolean","example":true},"data":{"type":"object","properties":{"id":{"type":"string","format":"uuid","description":"Unique identifier of the voice model","example":"550e8400-e29b-41d4-a716-446655440000"},"name":{"type":"string","description":"Name of the voice model","example":"Professional Female Voice"},"description":{"type":"string","nullable":true,"description":"Description of the voice characteristics","example":"Clear and professional female voice, ideal for narration and presentations"},"created_at":{"type":"string","format":"date-time","description":"Date and time when the voice model was created","example":"2025-01-15T10:30:00Z"}},"title":"VoiceDto"}},"title":"VoiceResponse"}}}},"401":{"description":"Unauthorized"},"404":{"description":"Voice model not found"}}}
+>
+  
+</StatusCodes>
+
+
+      

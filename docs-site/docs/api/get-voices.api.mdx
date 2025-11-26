@@ -1,0 +1,63 @@
+---
+id: get-voices
+title: "List available voice models"
+description: "Retrieves all available voice models that can be used for voice conversions"
+sidebar_label: "List available voice models"
+hide_title: true
+hide_table_of_contents: true
+api: eJytVd9v2zYQ/leIe5Zj2bOzTU9Lm7XIMGxBk7TADGM4S2eLLUWq5NGta+h/H45SEv/olpe92BJ5uvv4fd8d98C4CVAs4L3TJQVYZlBRKL1uWTsLBbwj9pq2FBQao3CL2uDKkNpKvGpcRSYorpFViVatSMVAlVo7P0SUzm7JB+1sgAxcSx4l800FBbwlHspm4Cm0zgYKUOxhmufyd4zkLpYlhbCOxuyUH2BVR0Agg9JZJsvyObat0WUqN/4YJMceQllTg/LEu5agALf6SCVDBq0XcKx7BKEvdhC4cs4QWsiAvmLTGoKCfaQugwr5MCN6jzvIQDM14eVKujqICey13UAGa+cbZCggRl3BqSgPVn+OpHRFlvVak1durbg+UuUQKMznOf00y/MRTX9ejWaTajbCHyeXo9ns8nI+n83yPM+hy8BiQ9+Dc1z+D2zopYq33q0piO5o1Btq0JBKYkuZo3Tn1Ww0yWQ9w6fVr5/fjkGUNXosmbwOrMtwBOe1IfQKbaXaQ2DrHlj6PhM+Zc15ZUXEVKH/hAJZTgtB8JeekKn6G/k/tauQacS6oTMGr5EppZZd9aUme0qm+oJBDXWOTjLNp/NRPhlN5veTvPghL/L8L+i6DFhzCkgsX7OD7mz1dx343dBost1lMMsn5632YDFy7bz+RpUaqRu7RaMr5bxqdAjabpTsi/n69lLsPpFNKBri2klzbyh5HbmGAsbY6vF2Mt4+tnsgL2MBisUeojdQQM3chmIskRcYvV7FcKHdGXO33lWxTC9ddvptYNxouxm9kOOuD4NuKUDK6DXvEpJXhJ78VRTMi+Xh9p3Mjb5hD4OexBcEcqwUJtMiBUE2PLx5tMRvH+7P4PwpudT0Ild96p5N5VaM2sow9a5J9jghvecwsa7t2iU0h2q/2l31HKir25vvEfncBylevX6a1cmbV7HSTt16J5NQRO/TDCFQwOQiHyYulqkT+vEBj2XvYts6LzagBrUIFfqVX47EOdH/eUtO1rrADdqD7GLif7mITg+5f74O/ueLbJCd6SuPW4Na3NgfZD94fgHYaqFrIj9Pt2vtAsvmfr/CQA/edJ0sf47kxYPLDLbodT/9Fssug5qwIp/s+Yl2wm5ZUiukbtHEdOGc3nNi3Kc+fPvrPXTdP3vku2k=
+sidebar_class_name: "get api-method"
+info_path: docs/api/voicebyauribus-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"List available voice models"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/api/v1/voices"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Retrieves all available voice models that can be used for voice conversions
+
+<ParamsDetails
+  parameters={undefined}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successfully retrieved voice models","content":{"application/json":{"schema":{"type":"object","properties":{"success":{"type":"boolean","example":true},"data":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string","format":"uuid","description":"Unique identifier of the voice model","example":"550e8400-e29b-41d4-a716-446655440000"},"name":{"type":"string","description":"Name of the voice model","example":"Professional Female Voice"},"description":{"type":"string","nullable":true,"description":"Description of the voice characteristics","example":"Clear and professional female voice, ideal for narration and presentations"},"created_at":{"type":"string","format":"date-time","description":"Date and time when the voice model was created","example":"2025-01-15T10:30:00Z"}},"title":"VoiceDto"}}},"title":"VoiceListResponse"}}}},"401":{"description":"Unauthorized - Invalid or missing authentication token"}}}
+>
+  
+</StatusCodes>
+
+
+      

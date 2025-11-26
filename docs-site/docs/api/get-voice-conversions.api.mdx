@@ -1,0 +1,63 @@
+---
+id: get-voice-conversions
+title: "List your voice conversions"
+description: "Retrieves all voice conversion jobs you have created"
+sidebar_label: "List your voice conversions"
+hide_title: true
+hide_table_of_contents: true
+api: eJylVtuO2zYQ/RViXpIAsi0b9m6rp26ybbBFgC720gBdGAYtjSxuZFIhh3ZcQ/9eDOWLfMlumz7ZvGjm8MyZyxpIzhwkT/CnUSmKD0Yv0DpltINxBBm61KqKlNGQwB2SVbhAJ2RZikX4IN19IJ7N1ImV8aKQCxSpRUmYQQSmQivZxE0GCXxECq7aniKw6CqjHTpI1jCIY/45dH7v0xSdy31ZroTdIMlOULCx1GhCTWxDVlWp0uC99+zY0BpcWuBc8j9aVQgJmOkzpgQRVJaxkmpguMZj6+LUmBKlhgjwm5xXJUJC1mMdQSapbVFaK1cQgSKcu9c9qax1x5FVegYR5MbOJUEC3ivm8ZCPR62+ehQqQ00qV2iFyQUVeDYubcRweRnjT8M47uDg52ln2M+GHXnZv+gMhxcXo9FwGMfxAOoIpM+UmeSqxMmPALy53iJyxtsURbAn2N4BnIuLV+H0GU5412RuMiz/J56GoWBJeIeZyI1tEXaAbjR6FV3M6CpFaTFxhcrpHDTUfs5Z5uQcJyYluWASSrNEu18Wala011Qom00ys9S7ha/4nSqnYrvfLHx1mq63DEkESErPhAn7ImQEZoJM4OI7z27jrCPwDieVxYXC5dl0OHT8uUAq0AoqlGsL0Tt0YmNGvO3HHYep0Zlwwes7Yazg9G6E0oaTy9JxljmS5N1L/Faos2ansoazt1mkhg015SiXqsTslK4P3lrUJBonW628kEd7o3UExlPlaeJteQ6e9mUpp9t6cez52ix1aWQmHu8+BS3uHRNmm7x5u5ClaqTaH4jCeOsiYXS5EnIhVbAulgXqLX7lxJsdwjfvulzaSSrtWhwLlYtWaPmbQHXEodjHZ3d8cptf0z0gpSCqXNLrOTJWzrArvVVT77rK9BqKet1ulwnb9IeJPJsvu1TOJGGH1BxPVHYtCYXUmeDT5ulHAVtK12pDe4yDeDDqxP1Of/TQj5NhnMTxXwHSlq7/AuqV0P47kC15fhfmqIFZR0CKwoWjPnpNBuoXzj8pR3ebPssX6wiGcf+00z5q6akwVv3N0q4jmCMVhnv3DEPvklRAAj1Zqd6i3wvVtHPYgR1aXkHytIaQEjtdyEq1NHES1FtrMp+GRR0df+tIzpSedV6xcd9cg3rMQFJvFa0CkvcoLdorz/Cfxu3jex4Jml7cvrSTACPgZ4VrXPnCJYg2f37bCuP3zw8ncP5gW2LQjUVjWpD5glqYKWcjNx9r5kEUzDo382ZcEQ2HIQBK5yagaQf2/eqq4UBc3d6cIzLn8me0LMXxbBcUeRUqwO2uTG7MbLtBAv1uvBmmZBryQcvw+K3be19VxrIicC4VB8o1O78cBOco/vsjflllHM2lbllnlfIUac+OdgePXO8nvR+dTTfxJfxGvaqUSodu1xTxRudPICvFvPRhM4McaH0cQWEc8b31eiodPtqyrnn7q0fLuhtHsJBWNTXiaVxHUKDM0AZJfsEVM5qmWDGRC1n6MD8ej60s1l0afvz1Aer6H73PCR8=
+sidebar_class_name: "get api-method"
+info_path: docs/api/voicebyauribus-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"List your voice conversions"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/api/v1/voice-conversions"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Retrieves all voice conversion jobs you have created
+
+<ParamsDetails
+  parameters={undefined}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successfully retrieved voice conversions","content":{"application/json":{"schema":{"type":"object","properties":{"success":{"type":"boolean","example":true},"data":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string","format":"uuid","description":"Unique identifier of the voice conversion job","example":"770e8400-e29b-41d4-a716-446655440002"},"audio_file_id":{"type":"string","format":"uuid","description":"ID of the source audio file","example":"660e8400-e29b-41d4-a716-446655440001"},"voice_model_id":{"type":"string","format":"uuid","description":"ID of the voice model used for conversion","example":"550e8400-e29b-41d4-a716-446655440000"},"pitch_shift":{"type":"string","enum":["same_octave","lower_octave","higher_octave","third_down","third_up","fifth_down","fifth_up"],"description":"Pitch shifting option applied to the conversion","example":"same_octave"},"use_preview":{"type":"boolean","description":"Whether this conversion uses preview (10-second sample) or full audio","example":false},"status":{"type":"string","enum":["pending","processing","completed","failed"],"description":"Current status of the conversion job","example":"completed"},"output_url":{"type":"string","nullable":true,"description":"Download URL for the converted audio (valid for 12 hours, only available when status is 'completed'). Contains full audio if use_preview is false, or 10-second preview if use_preview is true.","example":"https://storage.auribus.io/output/..."},"created_at":{"type":"string","format":"date-time","description":"Date and time when the conversion was created","example":"2025-01-15T10:40:00Z"},"completed_at":{"type":"string","format":"date-time","nullable":true,"description":"Date and time when the conversion was completed","example":"2025-01-15T10:45:00Z"}},"title":"VoiceConversionDto"}}},"title":"VoiceConversionListResponse"}}}},"401":{"description":"Unauthorized"}}}
+>
+  
+</StatusCodes>
+
+
+      

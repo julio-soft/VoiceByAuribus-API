@@ -481,3 +481,28 @@ public async Task CreateAudioFileAsync_WithValidData_ReturnsCreatedResponse()
 
 ### Integration Tests
 Use `WebApplicationFactory<Program>` for end-to-end endpoint testing with in-memory or test database
+
+## User-Facing Documentation ⭐
+
+**Location**: `/docs-site/` - Docusaurus 3.9.2 for client API docs
+**Commands**: `cd docs-site && npm start` (dev) | `npm run build` (verify links)
+
+### When to Update Documentation
+
+**ALWAYS update when changing**:
+1. **DTOs** → Update `openapi/voicebyauribus-api.yaml` + run `npm run gen-api-docs`
+2. **Endpoints/Routes** → Update YAML + relevant guide in `docs/guides/`
+3. **Business logic visible to clients** → Update guides
+4. **Auth/Security** → Update `docs/security/*.md`
+
+### Quality Standards
+
+**Include**: Complete code examples, professional tone, snake_case JSON, multi-language examples
+**Exclude**: Internal architecture, DB schema, .NET implementation details, class names
+
+### Key Files
+
+- `openapi/voicebyauribus-api.yaml` - API contract source of truth (use string literals, not enums)
+- `docs/getting-started/quickstart.md` - Primary onboarding
+- `docs/guides/*.md` - Feature guides
+- `docs/api/` - Auto-generated (DO NOT EDIT)

@@ -1,0 +1,71 @@
+---
+id: get-voice-conversion-by-id
+title: "Get voice conversion details"
+description: "Retrieves detailed information about a specific voice conversion job, including download URLs when completed"
+sidebar_label: "Get voice conversion details"
+hide_title: true
+hide_table_of_contents: true
+api: eJy9V21v2zYQ/isEv6wFZFs27HTzp6XNVmQYsCBpWmBBYNDiyWIrkyx5dOoZ+u/DkbIt22nSdsA+xSRPd88995oNR7HwfHrH3xtVAHtj9AqcV0Z7fp9xCb5wyqIymk/5NaBTsALPJKBQNUimdGncUpAAE3MTkAnmLRSqVAVbRZXFTiX7aOYZU7qog1R6waR50LURkt1e/+nZQwWaFWZpa0CQPOPGgouaLyWf8reAEeIe4ev1JYlZ4cQSEBy5seFaLIFPuaInRaitwIpn3MHnoBxIPkUX4Ni1W60+B2BKgkZVKnDMlAwrOPGBZ9wXFSwFn244ri3Z8uiUXvCMJy74lIegJG+aezLrrdEePMmP8pz+HJq+CUUB3pehrtfMtRTLU/IS555nvDAaQSOpEtbWqogsDT560rc5xWfmH6FAosoRp6gSGp8MdwTnxtQgyEf4IigQiawm41LgN2hU8nlWfph5yp4uMv7qVQ4/j/O8B6Nf5r3xUI574tXwrDcen51NJuNxnucj3mRcBKnMrFQ1zH4E4OXFFpE3wRXAoj5G+g7gnJ09C2dIcKJfs6WRUP9HPImhqIkFD5KVxh2m6h7dZPIsupzQWYVFNfOVKvExaKDDkrqFF0uYmQLFikiozQO4/bFSi6p7xko5OaNq3x2CJT9VidX2Ph2CPW07VwSJRUjUNYxN3YYyHyRDE7n4ittdnE3Gg4eZdbBS8PBo2h8a/lABVuAYVsp3EzF48KxVw14M856HwmjJfLT6khnHqJpTonThlKL2VE0eBQb/FL8WtEw31hmq0nTotscyduBTut4E50AjS0a2ufJEHe2VNhk3AW3AWXD1Y/B0qGsx3/aFY8sXnX4ec3FvGEG2dfNiJWqVUnU4YpUJzmfM6HrNxEqoqD2Ngha/8uynHcKfXvZpRKFQ2nc4ZqpkndDSN5HqjEKxj8/u+USavOkfkFIhWj8dDDwaJxbQF8GpefB9ZQaJokG/3yfCCgcCQc7Eo/WyK2UpEHqolnCSZRcCgQktGb0m148C9iA8a80cYBzlo0kvH/aGk3fDfDrOp3n+d4S0pet7QD0T2m8D2UnPr8KcJJhNxlFhFDia6xdonnq+bicqbxqSGufD05l6q0XAyjj1T8rqcT4+FXp/PGC0QVaaoGU0vwSsDG0eC4iTjtaIKR8Iqwar4SD23t7+Yz/YKNnQdgButd1FYhXtUklY1Umjkzy4ckaGIh6a7Phbj2Kh9KL3jI6bJMZp8/BQBKdwHZG8BuHAnQfy4e6++3xD20Ia312hXdYQgu3SE5tlFOJZ++P3bS798eHdCZy/SBcb9XOWVDM0n0AzM6cCpnnlzDLmEUWL5n/aZFjiMEaBFsyIppsMr9fniQN2fnX5GJEldUyjRc2O19qYxOexaVztOmurZjtApnzYz9s9SxSxhNqtcmv2JlhrHKUFLIWiQPl08+tBcI7iv38iz6zxuBS6o/0t4FNr34GXm/0W+H/v5W1iIHzBga2F0nGypoGRquSOC6uI0CFv951upfCMT1UcXJXxSNKbzVx4uHV109D15wCO0vY+4yvhVOpKdxsulaffsh2kTzDy4rrd9l+y79nsH/WsvRR6Tc6IOtCJZ/wTrNP/Gc19k/EKhAQXYaaH86IAi51PTlZ1qsJdk3n72zveNP8CbsWtOA==
+sidebar_class_name: "get api-method"
+info_path: docs/api/voicebyauribus-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get voice conversion details"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/api/v1/voice-conversions/{id}"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Retrieves detailed information about a specific voice conversion job, including download URLs when completed
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"id","in":"path","required":true,"description":"Unique identifier of the voice conversion","schema":{"type":"string","format":"uuid"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successfully retrieved voice conversion details","content":{"application/json":{"schema":{"type":"object","properties":{"success":{"type":"boolean","example":true},"data":{"type":"object","properties":{"id":{"type":"string","format":"uuid","description":"Unique identifier of the voice conversion job","example":"770e8400-e29b-41d4-a716-446655440002"},"audio_file_id":{"type":"string","format":"uuid","description":"ID of the source audio file","example":"660e8400-e29b-41d4-a716-446655440001"},"voice_model_id":{"type":"string","format":"uuid","description":"ID of the voice model used for conversion","example":"550e8400-e29b-41d4-a716-446655440000"},"pitch_shift":{"type":"string","enum":["same_octave","lower_octave","higher_octave","third_down","third_up","fifth_down","fifth_up"],"description":"Pitch shifting option applied to the conversion","example":"same_octave"},"use_preview":{"type":"boolean","description":"Whether this conversion uses preview (10-second sample) or full audio","example":false},"status":{"type":"string","enum":["pending","processing","completed","failed"],"description":"Current status of the conversion job","example":"completed"},"output_url":{"type":"string","nullable":true,"description":"Download URL for the converted audio (valid for 12 hours, only available when status is 'completed'). Contains full audio if use_preview is false, or 10-second preview if use_preview is true.","example":"https://storage.auribus.io/output/..."},"created_at":{"type":"string","format":"date-time","description":"Date and time when the conversion was created","example":"2025-01-15T10:40:00Z"},"completed_at":{"type":"string","format":"date-time","nullable":true,"description":"Date and time when the conversion was completed","example":"2025-01-15T10:45:00Z"}},"title":"VoiceConversionDto"}},"title":"VoiceConversionResponse"}}}},"401":{"description":"Unauthorized"},"404":{"description":"Voice conversion not found"}}}
+>
+  
+</StatusCodes>
+
+
+      

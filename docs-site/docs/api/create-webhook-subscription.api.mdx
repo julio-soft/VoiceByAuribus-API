@@ -1,0 +1,71 @@
+---
+id: create-webhook-subscription
+title: "Create webhook subscription"
+description: "Creates a webhook subscription to receive real-time notifications about your voice conversion jobs"
+sidebar_label: "Create webhook subscription"
+hide_title: true
+hide_table_of_contents: true
+api: eJy9Vttu20YQ/ZXFPKUAaVGy5IueKgct4iJFDMtpgBpCMCRH4trkLrMXKYqgfw9mSV2jpk4LRC8il7OzM2fOmdkVOJxZGD7CB0oLrZ8tTCLIyWZG1k5qBUN4bQgdWYFi0dgI69OtgXBaGMpIzkkYwjJ2siKhtJNTmSFbWIGp9k4stTdirmVGItNqTsby9iedWohA12SC9W2+PbINabx3GkRg6JMn6250voThKrxKQzkMnfEUQaaVI+X4E9Z12cbQebKcywpsVlCF/OSWNcEQdPpEmWv9No4ewZsSIqA5KRcAqQ3H5yRZ3slfdw6sM1LNIIKpNhU6GII3Eo5BfPPwcDcW7+/fClegEwtZllvYNrAegvaq8taJlETt01Jm5VJglpG1Mi1JoMqFtySC21841s9Y1SXHUzhX22Gnw3DHWNdnma467RG2E/CPd/hbWG8T3eWExuASIpCOKnsqV1K+YqB2jviYuiRHOUT7y1OUJeUwWUdQSXXbOOwew/NWWif0VDSRMKdajqUknN7P74fOXEfgpAuw/COl7hs+wXrN5oZsrZVtCt1Luvx3GOqHUyLIgvdcWB9qNPVluYT/QcZDwrVe9wxTrUtCtQ8M038dQY7uBR5l/n0Ge5kfkOrqKqGrfpLE1LtO434378d42b2I+/2Li8Gg30+S5JyZ9DJp/FSyrv8reSKQ9iNmTs7pRchbygy5U+kfEmjknY5npLjhUb5rqmG7mGoj3vw5eh2P34x6gwth5Uyh84bEnMy2PYhXttALJbQql0KrjEQsLM5JuEJaduUNlcvDxrAoLGUfsZv2svO8T4PpxeyyuJLXT8lzt+xV56qvB/XFp0tzZa9d4rvz3uL8c385+HKBl+lVdp0n1J32GM+W7R/xZLbbYufoKIyDgzB6SW8QJ924O3hIrodJMkySv1vxbbR6QqWNfPP7Vp7thn6SfCvQG8xFOyRELG7VHEuZh9arjajRYEWOTOBS/5TA3yv0rtBGfqEc+JSKXKF5LNXaBimhK2AIHaxlZ97d0DXebwg80iwZ5hQMH9uRsWU71vIMvZGpt2dSf0OQO6Nzn4WXdXS81zqcSTWL/8XHuDGD9SQQ0xvpliGSG0JDZuQ5hcfJ/ucxd6OmPewbbQvMEXBawYyVEIwgah9+35T9jw8P34Tzjn2J3lkiGtfC6WdSQqcOpaJcTI2uhCtIMPSk3IbmDYahCtw073ez/7cNoY4Bemkr2XWSH+0KaqoDLC1b/2LXN8tRUwwxurs9VdEpj26tsBTBXrzeXYF4mI98LrW4MzqMeDVr3bQmMITuWdIOFMyC7BSGKmyOHfu61obpSRVKBsQ2K78esOSIiLtPDDHzu0K1572R3cmL33GSq920+zlXxpaWjj67Tl2iVHsDqJHoI2DN82behQhOy3QSQcGqHj7CapWipfemXK95+ZMnw5KZRDBHIzENA4QJUBDmZIKanmnJ6TaJxw8cEZuXPgym45HPam52jLKMavdd28le47l7N2ZNpe2dt9I57zG44HsrLmAI4QrdpMSXYl5bQYlq5nHGto1P/n0FjzwsPg==
+sidebar_class_name: "post api-method"
+info_path: docs/api/voicebyauribus-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Create webhook subscription"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/api/v1/webhook-subscriptions"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Creates a webhook subscription to receive real-time notifications about your voice conversion jobs
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={undefined}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={{"required":true,"content":{"application/json":{"schema":{"type":"object","required":["url","events"],"properties":{"url":{"type":"string","format":"uri","description":"HTTPS URL that will receive webhook notifications (must be publicly accessible and use HTTPS)","example":"https://your-app.com/webhooks/voice-conversions"},"events":{"type":"array","items":{"type":"string","enum":["conversion.completed","conversion.failed"]},"minItems":1,"description":"List of events to subscribe to","example":["conversion.completed","conversion.failed"]}},"title":"CreateWebhookSubscriptionRequest"}}}}}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"201":{"description":"Webhook subscription created successfully","content":{"application/json":{"schema":{"type":"object","properties":{"success":{"type":"boolean","example":true},"data":{"type":"object","properties":{"id":{"type":"string","format":"uuid","example":"880e8400-e29b-41d4-a716-446655440003"},"url":{"type":"string","format":"uri","example":"https://your-app.com/webhooks/voice-conversions"},"events":{"type":"array","items":{"type":"string"},"example":["conversion.completed","conversion.failed"]},"is_active":{"type":"boolean","example":true},"secret":{"type":"string","description":"Auto-generated webhook secret for HMAC-SHA256 signature verification (shown only once - save this securely)","example":"whsec_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2"},"created_at":{"type":"string","format":"date-time","example":"2025-01-15T09:00:00Z"}}}},"title":"WebhookSubscriptionCreatedResponse"}}}},"400":{"description":"Bad request - Invalid URL or parameters"},"401":{"description":"Unauthorized"}}}
+>
+  
+</StatusCodes>
+
+
+      

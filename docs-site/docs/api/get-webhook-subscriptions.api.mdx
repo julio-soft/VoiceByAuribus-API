@@ -1,0 +1,63 @@
+---
+id: get-webhook-subscriptions
+title: "List your webhook subscriptions"
+description: "Retrieves all your active webhook subscriptions"
+sidebar_label: "List your webhook subscriptions"
+hide_title: true
+hide_table_of_contents: true
+api: eJydVW1v2zYQ/ivEfVoBKZYzJ0v1aem6dR0KLIidBlhgFGfqbLGRSJU8OvUM/feBlOz4rc22T5Koh3fP3T13twbGhYP8Ae5pVhrz6GCaQEFOWtWwMhpyuCW2ipbkBFaVWBlvBUpWSxJP3R3h/Gx7wUECpiGL4eN9ATm8I+6Njw9wllxjtCMH+RrOsyw89n2PvZTk3NxX1UrYnkjxTcfSaCbNwQ42TaVkZDH47IKxNThZUo3hjVcNQQ5m9pkkQwKNDZxZdVRc53UHODOmItSQAH3FuqkIcrae2gQK5F2LaC2uIAHFVLuXPaliB+PYKr2ABObG1siQg/eqgMN63Gn1xZNQBWlWc0VWmLng8nQ5dhnD1VVGV6MsS+n89SwdDYtRij8NL9PR6PLy4mI0yrLsR2gT8Lb6Pi2rjlj9PpncjMXd7QfBJbKwJEkFzWxIaRPIdgVxe6xK5sblg0FQVopNcyZNPeivucHSKEmpNHpJ1sW7bQK0JM3uX6R9y520r4PMnw0FN01FTEUnnM3xHFVFBUzbwwg/KMch1Z1zwaVye6kWlXJM2gk2u/H9R5/Kfeq666T69hndl8Ql2Vj8PSbKCemtJc3VatOsP6BnUyMriaGZCuVwVlEhcM5kxTATMrSi9BEcCHlL7tUJxUtLyFR8Qv6uSApkSlnVdET7LTIJ1IUIf8VTSfo4gid0one0J5bz7PwizYbp8GKSvc6zLM+yv6BtE2DFEXBi1LxlA+0LmFDc234cBXCbwCgbHg+kO42eS2PV31REvzVxacKYW1Bsb+QSchhgowbL4UbG6eGgcmRD7SF/WHfdtu0CbNQZeqtm3p0pc5S7G2sKL+NHmxzedYwLpRfpCzbGHQzaaSAivVW8ikzeEFqy1z6E8DDd/T0Ok7MbWbugbfkDgxBWhAXFRhAk/ctvG1H8cT85ovNnsCXOzzLRmRZsHkkLM2NUmgoxt6aOAgmZDzOvGyKiy2EsgtJzE9n0Bf4Yhsab1XWXA3F98/5UIufkQvdhJSJe/LJtyKjOa18oI26sCbtA6UVvpodADsOzrN85KGMvaIzBb9yOfdMYG1RBNapQKNed/LxXnIP6P/8KkTXGcY16x3ocQ3ELf2sL7gW6fl6K/2OT9+Vl+sqDpkKld9ZDJ/UHwCZsg+UQEjgt92kCpXEcsOv1DB3d2aptw/EXTzZIb5rAEq0KAykqL4GSsCAbVflIq5BUKakJuVxi5ePIP1zwQa/bbnz36wTa9h8wFRvW
+sidebar_class_name: "get api-method"
+info_path: docs/api/voicebyauribus-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"List your webhook subscriptions"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/api/v1/webhook-subscriptions"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Retrieves all your active webhook subscriptions
+
+<ParamsDetails
+  parameters={undefined}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successfully retrieved webhook subscriptions","content":{"application/json":{"schema":{"type":"object","properties":{"success":{"type":"boolean","example":true},"data":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string","format":"uuid","description":"Unique identifier of the webhook subscription","example":"880e8400-e29b-41d4-a716-446655440003"},"url":{"type":"string","format":"uri","description":"HTTPS URL that receives webhook notifications","example":"https://your-app.com/webhooks/voice-conversions"},"events":{"type":"array","items":{"type":"string","enum":["conversion.completed","conversion.failed"]},"description":"List of events this subscription listens to","example":["conversion.completed","conversion.failed"]},"is_active":{"type":"boolean","description":"Whether the subscription is currently active (automatically disabled after 10 consecutive failures)","example":true},"created_at":{"type":"string","format":"date-time","description":"Date and time when the subscription was created","example":"2025-01-15T09:00:00Z"}},"title":"WebhookSubscriptionDto"}}},"title":"WebhookSubscriptionListResponse"}}}},"401":{"description":"Unauthorized"}}}
+>
+  
+</StatusCodes>
+
+
+      

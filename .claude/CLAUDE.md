@@ -347,6 +347,72 @@ The API uses **AWS Cognito M2M authentication** with scope-based authorization.
 
 **See**: `.ai_doc/COGNITO_M2M_AUTH.md` for detailed authentication documentation
 
+## User-Facing Documentation ⭐
+
+**Location**: `/docs-site/` - Docusaurus 3.9.2 site for client-facing API documentation
+**Production URL**: https://docs.auribus.io
+**Local Dev**: `cd docs-site && npm start` → http://localhost:3000
+
+### Critical: When to Update Documentation
+
+**ALWAYS update docs when changing**:
+1. **DTOs** (`Features/*/Application/Dtos/`) → Update `openapi/voicebyauribus-api.yaml` + regenerate
+2. **Controllers** (new endpoints, routes) → Update YAML + relevant guides
+3. **Business logic visible to clients** → Update `docs/guides/*.md`
+4. **Auth/Security** → Update `docs/security/*.md` + `docs/getting-started/authentication.md`
+
+### Quick Update Workflow
+
+```bash
+# 1. Update OpenAPI spec (source of truth)
+vim openapi/voicebyauribus-api.yaml
+
+# 2. Update affected guides
+vim docs-site/docs/guides/[feature].md
+
+# 3. Regenerate API docs
+cd docs-site && npm run gen-api-docs
+
+# 4. Verify build (checks broken links)
+npm run build
+```
+
+### Documentation Quality Rules
+
+**Must Include**:
+- ✅ Complete, runnable code examples (no pseudo-code)
+- ✅ Professional tone, no internal jargon
+- ✅ snake_case for JSON fields (API convention)
+- ✅ Multi-language examples for critical features (Node.js, Python, C#, PHP)
+
+**Never Include**:
+- ❌ Internal architecture (Vertical Slice, DDD patterns)
+- ❌ Database schema or .NET implementation details
+- ❌ Internal class/service names
+
+### Key Commands
+
+```bash
+cd docs-site
+npm run gen-api-docs    # Regenerate from OpenAPI YAML
+npm run build           # Verify no broken links
+npm start               # Local dev server
+```
+
+### OpenAPI Critical Rules
+
+- ✅ Use string literals, never internal enums (e.g., `"same_octave"` not `Transposition`)
+- ✅ snake_case for all JSON fields
+- ✅ Never include temporary URLs (pre-signed URLs expire)
+- ✅ Add examples and descriptions for all schemas
+
+**Key Files**:
+- `openapi/voicebyauribus-api.yaml` - Source of truth for API contracts
+- `docs/getting-started/quickstart.md` - Primary onboarding (most critical)
+- `docs/guides/voice-conversion.md` - Core feature
+- `docs/guides/webhooks.md` - Webhook integration + security
+- `docs/api/` - Auto-generated (DO NOT EDIT MANUALLY)
+
 ## Features
 
 ### Auth Feature
