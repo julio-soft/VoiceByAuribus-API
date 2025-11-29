@@ -15,6 +15,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{466BC2FF-A
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VoiceByAuribus.AudioUploadNotifier.Tests", "VoiceByAuribus.AudioUploadNotifier\test\VoiceByAuribus.AudioUploadNotifier.Tests\VoiceByAuribus.AudioUploadNotifier.Tests.csproj", "{BA91FA84-DEC6-43F3-93CD-4E91EC1BD5DD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VoiceByAuribus.API.Tests", "VoiceByAuribus.API.Tests\VoiceByAuribus.API.Tests.csproj", "{DD41FECC-6369-47C5-A0BD-9A60804B480B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -61,6 +63,18 @@ Global
 		{BA91FA84-DEC6-43F3-93CD-4E91EC1BD5DD}.Release|x64.Build.0 = Release|Any CPU
 		{BA91FA84-DEC6-43F3-93CD-4E91EC1BD5DD}.Release|x86.ActiveCfg = Release|Any CPU
 		{BA91FA84-DEC6-43F3-93CD-4E91EC1BD5DD}.Release|x86.Build.0 = Release|Any CPU
+		{DD41FECC-6369-47C5-A0BD-9A60804B480B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD41FECC-6369-47C5-A0BD-9A60804B480B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD41FECC-6369-47C5-A0BD-9A60804B480B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{DD41FECC-6369-47C5-A0BD-9A60804B480B}.Debug|x64.Build.0 = Debug|Any CPU
+		{DD41FECC-6369-47C5-A0BD-9A60804B480B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{DD41FECC-6369-47C5-A0BD-9A60804B480B}.Debug|x86.Build.0 = Debug|Any CPU
+		{DD41FECC-6369-47C5-A0BD-9A60804B480B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD41FECC-6369-47C5-A0BD-9A60804B480B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DD41FECC-6369-47C5-A0BD-9A60804B480B}.Release|x64.ActiveCfg = Release|Any CPU
+		{DD41FECC-6369-47C5-A0BD-9A60804B480B}.Release|x64.Build.0 = Release|Any CPU
+		{DD41FECC-6369-47C5-A0BD-9A60804B480B}.Release|x86.ActiveCfg = Release|Any CPU
+		{DD41FECC-6369-47C5-A0BD-9A60804B480B}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
