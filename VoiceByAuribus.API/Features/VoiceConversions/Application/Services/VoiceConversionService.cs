@@ -42,6 +42,10 @@ public class VoiceConversionService(
     private readonly string _audioBucket = configuration["AWS:S3:AudioFilesBucket"]
         ?? throw new InvalidOperationException("AWS:S3:AudioFilesBucket configuration is required");
 
+    private readonly string? _conversionCallbackUrl = configuration["AWS:SQS:VoiceConversionCallbackUrl"];
+
+    private readonly string? _conversionCallbackType = configuration["AWS:SQS:VoiceConversionCallbackType"];
+
 
     private const int MaxRetryAttempts = 5;
     private const int RetryDelayMinutes = 5;
@@ -197,20 +201,30 @@ public class VoiceConversionService(
     public async Task HandleConversionResultAsync(VoiceConversionWebhookDto dto)
     {
         logger.LogInformation(
-            "Processing conversion result: InferenceId={InferenceId}, Status={Status}",
-            dto.InferenceId, dto.Status);
+            "Processing conversion result: RequestId={RequestId}, Status={Status}, FinishedAtUtc={FinishedAtUtc}",
+            dto.RequestId, dto.Status, dto.FinishedAtUtc);
+
+        // Parse RequestId as GUID to find the conversion
+        if (!Guid.TryParse(dto.RequestId, out var conversionId))
+        {
+            logger.LogError(
+                "Invalid RequestId format - expected GUID: RequestId={RequestId}",
+                dto.RequestId);
+            throw new InvalidOperationException($"Invalid RequestId format: {dto.RequestId}");
+        }
 
         var conversion = await context.VoiceConversions
-            .FirstOrDefaultAsync(c => c.Id == dto.InferenceId);
+            .FirstOrDefaultAsync(c => c.Id == conversionId);
 
         if (conversion is null)
         {
             logger.LogError(
-                "Conversion result failed - conversion not found: InferenceId={InferenceId}",
-                dto.InferenceId);
-            throw new InvalidOperationException($"Voice conversion not found: {dto.InferenceId}");
+                "Conversion result failed - conversion not found: RequestId={RequestId}",
+                dto.RequestId);
+            throw new InvalidOperationException($"Voice conversion not found: RequestId={dto.RequestId}");
         }
 
+        // Parse status (SUCCESS or FAILED)
         var isSuccess = dto.Status.Equals("SUCCESS", StringComparison.OrdinalIgnoreCase);
 
         if (isSuccess)
@@ -219,18 +233,18 @@ public class VoiceConversionService(
             conversion.CompletedAt = dateTimeProvider.UtcNow;
 
             logger.LogInformation(
-                "Voice conversion completed successfully: ConversionId={ConversionId}",
-                conversion.Id);
+                "Voice conversion completed successfully: ConversionId={ConversionId}, FinishedAtUtc={FinishedAtUtc}",
+                conversion.Id, dto.FinishedAtUtc);
         }
         else
         {
             conversion.Status = ConversionStatus.Failed;
-            conversion.ErrorMessage = dto.ErrorMessage ?? "External service reported failure";
+            conversion.ErrorMessage = "External service reported failure";
             conversion.CompletedAt = dateTimeProvider.UtcNow;
 
             logger.LogWarning(
-                "Voice conversion failed: ConversionId={ConversionId}, Error={Error}",
-                conversion.Id, conversion.ErrorMessage);
+                "Voice conversion failed: ConversionId={ConversionId}, Status={Status}",
+                conversion.Id, dto.Status);
         }
 
         await context.SaveChangesAsync();
@@ -493,16 +507,37 @@ public class VoiceConversionService(
             inputS3Uri = audioFile.Preprocessing.S3UriInference;
         }
 
-        var message = new
+        // Build the message with new schema
+        object message;
+        if (!string.IsNullOrEmpty(_conversionCallbackUrl) && !string.IsNullOrEmpty(_conversionCallbackType))
         {
-            inference_id = conversion.Id,
-            order_id = -1,
-            voice_model_path = voiceModel.VoiceModelPath,
-            voice_model_index_path = voiceModel.VoiceModelIndexPath,
-            transposition = (int)conversion.Transposition,
-            s3_key_for_inference = inputS3Uri,
-            s3_key_out = conversion.OutputS3Uri
-        };
+            message = new
+            {
+                request_id = conversion.Id.ToString(),
+                voice_model_path = voiceModel.VoiceModelPath,
+                voice_model_index_path = voiceModel.VoiceModelIndexPath,
+                transposition = (int)conversion.Transposition,
+                s3_uri_in = inputS3Uri,
+                s3_uri_out = conversion.OutputS3Uri,
+                callback_response = new
+                {
+                    url = _conversionCallbackUrl,
+                    type = _conversionCallbackType
+                }
+            };
+        }
+        else
+        {
+            message = new
+            {
+                request_id = conversion.Id.ToString(),
+                voice_model_path = voiceModel.VoiceModelPath,
+                voice_model_index_path = voiceModel.VoiceModelIndexPath,
+                transposition = (int)conversion.Transposition,
+                s3_uri_in = inputS3Uri,
+                s3_uri_out = conversion.OutputS3Uri
+            };
+        }
 
         // Use conversion ID as deduplication ID to prevent duplicate messages
         // This ensures that even if multiple instances try to queue the same conversion,

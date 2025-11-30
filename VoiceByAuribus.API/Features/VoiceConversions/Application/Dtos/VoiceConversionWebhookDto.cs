@@ -8,19 +8,22 @@ namespace VoiceByAuribus_API.Features.VoiceConversions.Application.Dtos;
 public class VoiceConversionWebhookDto
 {
     /// <summary>
-    /// Inference ID that identifies the conversion request.
+    /// Processing result status.
+    /// Valid values: "SUCCESS" or "FAILED"
     /// </summary>
     [Required]
-    public Guid InferenceId { get; set; }
+    public required string Status { get; set; }
 
     /// <summary>
-    /// Status of the conversion: "SUCCESS" or "FAILED".
+    /// Request ID that identifies the conversion request (echoes the original request_id).
+    /// This is the conversion GUID as a string.
     /// </summary>
     [Required]
-    public string Status { get; set; } = string.Empty;
+    public required string RequestId { get; set; }
 
     /// <summary>
-    /// Error message if status is FAILED.
+    /// ISO 8601 UTC timestamp when the processing finished.
     /// </summary>
-    public string? ErrorMessage { get; set; }
+    [Required]
+    public required string FinishedAtUtc { get; set; }
 }

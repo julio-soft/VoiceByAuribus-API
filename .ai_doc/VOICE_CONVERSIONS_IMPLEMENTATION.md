@@ -99,31 +99,48 @@ POST /api/v1/voice-conversions
 **Mensaje SQS enviado:**
 ```json
 {
-  "inference_id": "conversion-uuid",
-  "order_id": -1,
+  "request_id": "conversion-uuid",
   "voice_model_path": "s3://bucket/models/model.pth",
   "voice_model_index_path": "s3://bucket/models/model.index",
   "transposition": 0,
-  "s3_key_for_inference": "s3://bucket/audio-files/{userId}/inference/{fileId}.mp3",
-  "s3_key_out": "s3://bucket/audio-files/{userId}/converted/{fileId}_{conversionId}.mp3"
+  "s3_uri_in": "s3://bucket/audio-files/{userId}/inference/{fileId}.mp3",
+  "s3_uri_out": "s3://bucket/audio-files/{userId}/converted/{fileId}_{conversionId}.mp3",
+  "callback_response": {
+    "url": "https://api.example.com/webhooks/conversion-result",
+    "type": "HTTP"
+  }
 }
 ```
 
+**Campos del mensaje:**
+- `request_id`: ID de la conversión (GUID como string)
+- `transposition`: Valor de transposición en semitonos (integer)
+- `voice_model_path`: S3 URI del modelo de voz
+- `voice_model_index_path`: S3 URI del índice del modelo
+- `s3_uri_in`: S3 URI del audio de entrada (preprocesado)
+- `s3_uri_out`: S3 URI donde guardar el audio convertido
+- `callback_response`: (opcional) Configuración del webhook de respuesta
+
 ### 4. Webhook de Resultado
 ```
-POST /api/v1/voice-conversions/webhook/conversion-result
+POST /api/v1/voice-conversions/webhooks/conversion-result
 X-Webhook-Api-Key: {api_key}
 {
-  "inference_id": "uuid",
-  "status": "SUCCESS",  // o "FAILED"
-  "error_message": null
+  "status": "SUCCESS",
+  "request_id": "conversion-uuid",
+  "finished_at_utc": "2025-11-29T15:30:00Z"
 }
 ```
+
+**Campos de respuesta:**
+- `status`: Resultado del procesamiento - "SUCCESS" o "FAILED"
+- `request_id`: ID de la conversión original (GUID como string)
+- `finished_at_utc`: Timestamp ISO 8601 UTC cuando terminó el procesamiento
 
 **Actualiza:**
 - Status → `Completed` o `Failed`
 - `completed_at` timestamp
-- `error_message` si falló
+- `error_message` si status es "FAILED"
 
 ## 🗄️ Base de Datos
 
@@ -163,7 +180,10 @@ Campos visibles solo para usuarios con scope admin:
       "AudioFilesBucket": "voice-by-auribus-api"
     },
     "SQS": {
-      "VoiceInferenceQueueUrl": "https://sqs.us-east-1.amazonaws.com/ACCOUNT_ID/voice-inference-queue"
+      "VoiceInferenceQueue": "voice-inference-queue",
+      "PreviewInferenceQueue": "preview-inference-queue",
+      "VoiceConversionCallbackUrl": "https://api.example.com/api/v1/voice-conversions/webhooks/conversion-result",
+      "VoiceConversionCallbackType": "HTTP"
     }
   }
 }
@@ -174,7 +194,10 @@ Campos visibles solo para usuarios con scope admin:
 ConnectionStrings__DefaultConnection={connection_string}
 AWS__Region=us-east-1
 AWS__S3__AudioFilesBucket=voice-by-auribus-api
-AWS__SQS__VoiceInferenceQueueUrl={queue_url}
+AWS__SQS__VoiceInferenceQueue=voice-inference-queue
+AWS__SQS__PreviewInferenceQueue=preview-inference-queue
+AWS__SQS__VoiceConversionCallbackUrl={callback_url}
+AWS__SQS__VoiceConversionCallbackType=HTTP
 ```
 
 ## 🚀 Deployment
@@ -294,7 +317,7 @@ POST http://localhost:5037/api/v1/voice-conversions
 GET http://localhost:5037/api/v1/voice-conversions/{id}
 
 # 3. Webhook (interno)
-POST http://localhost:5037/api/v1/voice-conversions/webhook/conversion-result
+POST http://localhost:5037/api/v1/voice-conversions/webhooks/conversion-result
 ```
 
 Ver `.ai_doc/v1/voice_conversions.md` para ejemplos completos con curl.
@@ -331,8 +354,9 @@ Ver `.ai_doc/v1/voice_conversions.md` para ejemplos completos con curl.
 
 - Enum values se almacenan como strings en DB (fácil debugging)
 - Transposition se envía como integer al servicio externo
-- Order ID siempre es -1 (campo reservado para futuro)
+- Request ID es el GUID de la conversión como string
 - Output S3 URI incluye conversion ID para unicidad
 - Background processor usa advisory locks de PostgreSQL (via EF Core)
 - Lambda tiene timeout de 5 minutos (suficiente para procesar batch)
 - Pre-signed URLs tienen lifetime de 12 horas
+- Webhook requiere request_id para correlación (campo obligatorio)

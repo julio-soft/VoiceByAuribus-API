@@ -39,8 +39,8 @@ public class VoiceConversionsWebhookController : ControllerBase
     public async Task<IActionResult> ConversionResultAsync([FromBody] VoiceConversionWebhookDto dto)
     {
         _logger.LogInformation(
-            "[WEBHOOK] POST /voice-conversions/webhooks/conversion-result - InferenceId={InferenceId}, Status={Status}",
-            dto.InferenceId, dto.Status);
+            "[WEBHOOK] POST /voice-conversions/webhooks/conversion-result - RequestId={RequestId}, Status={Status}, FinishedAtUtc={FinishedAtUtc}",
+            dto.RequestId, dto.Status, dto.FinishedAtUtc);
 
         try
         {

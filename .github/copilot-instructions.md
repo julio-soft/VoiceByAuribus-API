@@ -117,6 +117,17 @@ VoiceByAuribus.AudioUploadNotifier/  # AWS Lambda for S3 upload notifications
 - **User Ownership**: Implements `IHasUserId` for automatic user isolation
 - **Configuration**: Background processor settings in `appsettings.json` under `VoiceConversions:BackgroundProcessor`
 - **Webhook Events**: Publishes webhook events on completion/failure via `IWebhookEventPublisher`
+- **SQS Message Schema**: Voice conversion messages include:
+  - `request_id`: Conversion GUID as string (for callback correlation)
+  - `voice_model_path`, `voice_model_index_path`: S3 URIs for model files
+  - `transposition`: Integer value in semitones
+  - `s3_uri_in`: S3 URI of input (preprocessed) audio
+  - `s3_uri_out`: S3 URI where converted audio will be saved
+  - `callback_response` (optional): `{url, type}` for HTTP or SQS callback configuration
+- **Webhook Result Schema**: External service sends results with:
+  - `status`: Processing result - "SUCCESS" or "FAILED"
+  - `request_id`: Conversion GUID as string (echoes the original request_id)
+  - `finished_at_utc`: ISO 8601 UTC timestamp when processing finished
 
 ### Webhook Subscriptions ⭐ NEW FEATURE
 

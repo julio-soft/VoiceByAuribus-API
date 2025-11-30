@@ -168,15 +168,16 @@ X-Webhook-Api-Key: {api_key}
 Content-Type: application/json
 
 {
-  "inference_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
   "status": "SUCCESS",
-  "error_message": null
+  "request_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "finished_at_utc": "2025-11-29T15:30:00Z"
 }
 ```
 
-**Status Values:**
-- `SUCCESS`: Conversion completed successfully
-- `FAILED`: Conversion failed (error_message should be provided)
+**Fields:**
+- `status`: Processing result - either "SUCCESS" or "FAILED"
+- `request_id`: Conversion ID that was sent in the original SQS message (GUID as string)
+- `finished_at_utc`: ISO 8601 UTC timestamp when the processing finished
 
 **Response (200 OK):**
 ```json
@@ -194,7 +195,7 @@ Content-Type: application/json
 ```json
 {
   "success": false,
-  "message": "Voice conversion not found: {inference_id}",
+  "message": "Voice conversion not found: RequestId={request_id}",
   "data": null,
   "errors": null
 }
@@ -231,24 +232,29 @@ When a conversion is queued, the following message is sent to the voice inferenc
 
 ```json
 {
-  "inference_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-  "order_id": -1,
+  "request_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
   "voice_model_path": "s3://bucket/models/artist-model.pth",
   "voice_model_index_path": "s3://bucket/models/artist-model.index",
   "transposition": 0,
-  "s3_key_for_inference": "s3://bucket/audio-files/{user_id}/inference/{file_id}.mp3",
-  "s3_key_out": "s3://bucket/audio-files/{user_id}/converted/{file_id}_{conversion_id}.mp3"
+  "s3_uri_in": "s3://bucket/audio-files/{user_id}/inference/{file_id}.mp3",
+  "s3_uri_out": "s3://bucket/audio-files/{user_id}/converted/{file_id}_{conversion_id}.mp3",
+  "callback_response": {
+    "url": "https://api.example.com/api/v1/voice-conversions/webhooks/conversion-result",
+    "type": "HTTP"
+  }
 }
 ```
 
 **Field Details:**
-- `inference_id`: Voice conversion ID (used in webhook callback)
-- `order_id`: Always -1 (reserved for future use)
+- `request_id`: Voice conversion ID as string (used in webhook callback for correlation)
 - `voice_model_path`: S3 URI of the AI voice model file
 - `voice_model_index_path`: S3 URI of the model index file
 - `transposition`: Semitone shift value (integer from Transposition enum)
-- `s3_key_for_inference`: Full S3 URI of preprocessed audio file
-- `s3_key_out`: Full S3 URI where converted audio should be saved
+- `s3_uri_in`: Full S3 URI of preprocessed audio file
+- `s3_uri_out`: Full S3 URI where converted audio should be saved
+- `callback_response`: (optional) Webhook configuration for result notification
+  - `url`: HTTP endpoint or SQS queue URL for callback
+  - `type`: Either "HTTP" or "SQS"
 
 ---
 
@@ -300,7 +306,10 @@ CREATE INDEX "ix_voice_conversions_status_retry_count"
       "AudioFilesBucket": "voice-by-auribus-api"
     },
     "SQS": {
-      "VoiceInferenceQueueUrl": "https://sqs.us-east-1.amazonaws.com/ACCOUNT_ID/voice-inference-queue"
+      "VoiceInferenceQueue": "voice-inference-queue",
+      "PreviewInferenceQueue": "preview-inference-queue",
+      "VoiceConversionCallbackUrl": "https://api.example.com/api/v1/voice-conversions/webhooks/conversion-result",
+      "VoiceConversionCallbackType": "HTTP"
     }
   },
   "Webhooks": {
@@ -314,7 +323,10 @@ CREATE INDEX "ix_voice_conversions_status_retry_count"
 ConnectionStrings__DefaultConnection=Host=rds-endpoint;Port=5432;Database=db;Username=user;Password=pass
 AWS__Region=us-east-1
 AWS__S3__AudioFilesBucket=voice-by-auribus-api
-AWS__SQS__VoiceInferenceQueueUrl=https://sqs.us-east-1.amazonaws.com/ACCOUNT_ID/voice-inference-queue
+AWS__SQS__VoiceInferenceQueue=voice-inference-queue
+AWS__SQS__PreviewInferenceQueue=preview-inference-queue
+AWS__SQS__VoiceConversionCallbackUrl=https://api.example.com/webhooks/conversion-result
+AWS__SQS__VoiceConversionCallbackType=HTTP
 ```
 
 ---
@@ -394,11 +406,12 @@ curl http://localhost:5037/api/v1/voice-conversions/{conversion_id} \
 
 **Webhook (internal testing):**
 ```bash
-curl -X POST http://localhost:5037/api/v1/voice-conversions/webhook/conversion-result \
+curl -X POST http://localhost:5037/api/v1/voice-conversions/webhooks/conversion-result \
   -H "X-Webhook-Api-Key: YOUR_WEBHOOK_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "inference_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-    "status": "SUCCESS"
+    "status": "SUCCESS",
+    "request_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "finished_at_utc": "2025-11-29T15:30:00Z"
   }'
 ```
