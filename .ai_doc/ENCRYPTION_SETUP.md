@@ -31,28 +31,17 @@ Add the encryption master key to your existing production secret in AWS Secrets 
 
 **Secret Name**: `voice-by-auribus-api/production`
 
-**JSON Structure** (add the `Encryption` section):
+**JSON Structure** (secrets only, using double-underscore notation for .NET configuration binding):
 
 ```json
 {
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=...;Database=...;Username=...;Password=..."
-  },
-  "Authentication": {
-    "Cognito": {
-      "Region": "us-east-1",
-      "UserPoolId": "us-east-1_XXXXXXXXX",
-      "Audience": "voice-by-auribus-api"
-    }
-  },
-  "Webhooks": {
-    "ApiKey": "your-webhook-api-key-for-preprocessing"
-  },
-  "Encryption": {
-    "MasterKey": "7H9x2K4mP8nQ5vR6tW3yZ1aB4cD7eF9gH2jK5mN8pR=="
-  }
+  "ConnectionStrings__DefaultConnection": "Host=...;Port=5432;Database=...;Username=...;Password=...;SslMode=Require",
+  "Webhooks__ApiKey": "your-webhook-api-key-for-preprocessing-callbacks",
+  "Encryption__MasterKey": "base64-encoded-32-byte-key-here"
 }
 ```
+
+> **Note**: Only actual secrets are stored in AWS Secrets Manager. Configuration values (Cognito settings, S3 bucket names, SQS queue names, etc.) are stored in `appsettings.json` since they are not sensitive.
 
 ### Using AWS CLI
 
@@ -68,10 +57,10 @@ EXISTING_SECRET=$(aws secretsmanager get-secret-value \
   --query SecretString \
   --output text)
 
-# 3. Add Encryption.MasterKey to the JSON
+# 3. Add Encryption__MasterKey to the JSON (double-underscore format)
 # Use jq to merge the new key
 UPDATED_SECRET=$(echo "$EXISTING_SECRET" | jq --arg key "$MASTER_KEY" \
-  '. + {Encryption: {MasterKey: $key}}')
+  '. + {Encryption__MasterKey: $key}')
 
 # 4. Update the secret
 aws secretsmanager update-secret \
@@ -88,11 +77,9 @@ echo "Secret updated successfully!"
 2. Navigate to `voice-by-auribus-api/production`
 3. Click "Retrieve secret value"
 4. Click "Edit"
-5. Add the `Encryption` section to the JSON:
+5. Add the `Encryption__MasterKey` field (double-underscore notation):
    ```json
-   "Encryption": {
-     "MasterKey": "YOUR_GENERATED_KEY_HERE"
-   }
+   "Encryption__MasterKey": "YOUR_GENERATED_KEY_HERE"
    ```
 6. Click "Save"
 

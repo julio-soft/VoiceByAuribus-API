@@ -223,29 +223,31 @@ aws iam put-role-policy \
 
 ### 3. Configure Secrets Manager
 
-Store all sensitive configuration in AWS Secrets Manager:
+Store **only sensitive secrets** in AWS Secrets Manager (not configuration):
 
 ```bash
 cat > /tmp/production-secrets.json <<EOF
 {
   "ConnectionStrings__DefaultConnection": "Host=<RDS_ENDPOINT>;Port=5432;Database=voice_by_auribus_api_db;Username=<DB_USER>;Password=<DB_PASSWORD>;SslMode=Require",
-  "Authentication__Cognito__Region": "us-east-1",
-  "Authentication__Cognito__UserPoolId": "<USER_POOL_ID>",
-  "Authentication__Cognito__Audience": "voice-by-auribus-api",
-  "AWS__S3__AudioFilesBucket": "voice-by-auribus-api",
-  "AWS__S3__UploadUrlExpirationMinutes": "30",
-  "AWS__S3__MaxFileSizeMB": "100",
-  "AWS__SQS__AudioPreprocessingQueue": "aurivoice-svs-prep-nbl.fifo"
+  "Webhooks__ApiKey": "<SECURE_API_KEY_FOR_PREPROCESSING_WEBHOOKS>",
+  "Encryption__MasterKey": "<BASE64_32_BYTE_KEY_FOR_WEBHOOK_SECRET_ENCRYPTION>"
 }
 EOF
 
 aws secretsmanager create-secret \
   --name voice-by-auribus-api/production \
-  --description "VoiceByAuribus API Production Configuration" \
+  --description "VoiceByAuribus API Production Secrets" \
   --secret-string file:///tmp/production-secrets.json \
   --region $AWS_REGION
 
 rm /tmp/production-secrets.json
+```
+
+> **Note**: Only actual secrets are stored here. Configuration values (Cognito settings, S3 bucket names, SQS queue names, etc.) are stored in `appsettings.json` since they are not sensitive and don't require secret rotation.
+
+**Generate Encryption MasterKey:**
+```bash
+openssl rand -base64 32
 ```
 
 **Important:** Replace placeholders with actual values.
@@ -425,13 +427,20 @@ chmod +x scripts/deploy-to-aws.sh
 
 Configuration is loaded from:
 
-1. `appsettings.json` (development defaults)
-2. AWS Secrets Manager (production overrides)
+1. `appsettings.json` (all configuration including non-sensitive values)
+2. AWS Secrets Manager (only secrets that override appsettings.json)
 
-**Key configuration paths:**
+**Secrets stored in AWS Secrets Manager (production):**
 
 ```
-ConnectionStrings:DefaultConnection
+ConnectionStrings__DefaultConnection  → Database connection with password
+Webhooks__ApiKey                      → API key for preprocessing webhooks
+Encryption__MasterKey                 → Master key for webhook secret encryption
+```
+
+**Configuration in appsettings.json (not sensitive):**
+
+```
 Authentication:Cognito:Region
 Authentication:Cognito:UserPoolId
 Authentication:Cognito:Audience
@@ -439,15 +448,18 @@ AWS:S3:AudioFilesBucket
 AWS:S3:UploadUrlExpirationMinutes
 AWS:S3:MaxFileSizeMB
 AWS:SQS:AudioPreprocessingQueue
+AWS:SQS:VoiceInferenceQueue
+AWS:SQS:PreviewInferenceQueue
 ```
 
-**Secrets Manager conversion:**
+**Secrets Manager key conversion:**
 
 The application converts double underscores to colons:
 
 ```
 ConnectionStrings__DefaultConnection → ConnectionStrings:DefaultConnection
-AWS__S3__AudioFilesBucket → AWS:S3:AudioFilesBucket
+Webhooks__ApiKey → Webhooks:ApiKey
+Encryption__MasterKey → Encryption:MasterKey
 ```
 
 See `VoiceByAuribus.API/Shared/Infrastructure/Configuration/AwsSecretsManagerConfigurationProvider.cs:40`
