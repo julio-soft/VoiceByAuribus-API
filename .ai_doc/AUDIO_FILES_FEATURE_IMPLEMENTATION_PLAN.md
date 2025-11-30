@@ -30,7 +30,12 @@ Cuando el estado cambia a "uploaded", lanzar preprocessing automáticamente:
 {
   "s3_key_temp": "s3://bucket/audio-files/{userId}/temp/{fileId}.mp3",
   "s3_key_short": "s3://bucket/audio-files/{userId}/short/{fileId}.mp3",
-  "s3_key_for_inference": "s3://bucket/audio-files/{userId}/inference/{fileId}.mp3"
+  "s3_key_for_inference": "s3://bucket/audio-files/{userId}/inference/{fileId}.mp3",
+  "request_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "callback_response": {
+    "url": "https://api.example.com/api/v1/audio-files/webhooks/preprocessing-result",
+    "type": "HTTP"
+  }
 }
 ```
 
@@ -38,9 +43,18 @@ Cuando el estado cambia a "uploaded", lanzar preprocessing automáticamente:
 ```json
 {
   "s3_key_temp": "s3://bucket/audio-files/{userId}/temp/{fileId}.mp3",
-  "audio_duration": 123.45  // null si falló
+  "audio_duration": 123,
+  "success": true,
+  "request_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
 }
 ```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `s3_key_temp` | string | Original input S3 key |
+| `audio_duration` | int \| null | Duration in seconds, null on failure |
+| `success` | boolean | `true` if processing succeeded, `false` otherwise |
+| `request_id` | string \| undefined | Original request ID if provided |
 
 ### 5. Preprocessing Data Model
 Crear modelo separado para tracking de preprocessing:

@@ -104,9 +104,24 @@ audio-files/
 {
   "s3_key_temp": "s3://voice-by-auribus-audio-files/audio-files/{userId}/temp/{fileId}.mp3",
   "s3_key_short": "s3://voice-by-auribus-audio-files/audio-files/{userId}/short/{fileId}.mp3",
-  "s3_key_for_inference": "s3://voice-by-auribus-audio-files/audio-files/{userId}/inference/{fileId}.mp3"
+  "s3_key_for_inference": "s3://voice-by-auribus-audio-files/audio-files/{userId}/inference/{fileId}.mp3",
+  "request_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "callback_response": {
+    "url": "https://api.example.com/api/v1/audio-files/webhooks/preprocessing-result",
+    "type": "HTTP"
+  }
 }
 ```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `s3_key_temp` | string | Full S3 URI for the temporary (original) uploaded audio file. Format: `s3://bucket/path` |
+| `s3_key_short` | string | Full S3 URI where the short preview audio will be stored |
+| `s3_key_for_inference` | string | Full S3 URI where the inference-ready audio will be stored |
+| `request_id` | string (optional) | Unique identifier for tracking (AudioFileId is used) |
+| `callback_response` | object (optional) | Callback configuration for receiving processing results |
+| `callback_response.url` | string | Destination URL (HTTP endpoint or SQS queue URL) |
+| `callback_response.type` | string | Either `"HTTP"` or `"SQS"` |
 
 **IAM Permissions Required**:
 - API Backend: `sqs:SendMessage`, `sqs:GetQueueUrl`

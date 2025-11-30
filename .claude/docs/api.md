@@ -634,8 +634,10 @@ X-Webhook-Api-Key: <your_webhook_api_key>
 
 ```json
 {
-  "s3_key_temp": "audio-files/{userId}/temp/{fileId}.mp3",
-  "audio_duration": 123
+  "s3_key_temp": "s3://bucket/audio-files/{userId}/temp/{fileId}.mp3",
+  "audio_duration": 123,
+  "success": true,
+  "request_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
 }
 ```
 
@@ -643,10 +645,19 @@ X-Webhook-Api-Key: <your_webhook_api_key>
 
 ```json
 {
-  "s3_key_temp": "audio-files/{userId}/temp/{fileId}.mp3",
-  "audio_duration": null
+  "s3_key_temp": "s3://bucket/audio-files/{userId}/temp/{fileId}.mp3",
+  "audio_duration": null,
+  "success": false,
+  "request_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
 }
 ```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `s3_key_temp` | string | Full S3 URI of the original input file. Format: `s3://bucket/path` (matches AudioFile.S3Uri) |
+| `audio_duration` | int \| null | Duration in seconds, null on failure |
+| `success` | boolean | `true` if processing succeeded, `false` otherwise |
+| `request_id` | string \| undefined | Original request ID (AudioFileId) if provided |
 
 ### Response (200 OK)
 
@@ -665,7 +676,7 @@ X-Webhook-Api-Key: <your_webhook_api_key>
 1. Updates preprocessing `processing_status` to `Completed`
 2. Sets `audio_duration_seconds` from result
 3. Sets `processing_completed_at` timestamp
-4. Constructs S3 URIs for short and inference files
+4. Validates `request_id` correlation (logs warning on mismatch)
 
 **On Failure:**
 1. Updates preprocessing `processing_status` to `Failed`

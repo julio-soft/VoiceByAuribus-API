@@ -242,7 +242,9 @@ Soft deletes an audio file (sets `is_deleted` flag).
 ```json
 {
   "s3_key_temp": "s3://voice-by-auribus-audio-files/audio-files/{userId}/temp/{fileId}.mp3",
-  "audio_duration": 123.456
+  "audio_duration": 123,
+  "success": true,
+  "request_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
 }
 ```
 
@@ -250,9 +252,18 @@ Soft deletes an audio file (sets `is_deleted` flag).
 ```json
 {
   "s3_key_temp": "s3://voice-by-auribus-audio-files/audio-files/{userId}/temp/{fileId}.mp3",
-  "audio_duration": null
+  "audio_duration": null,
+  "success": false,
+  "request_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
 }
 ```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `s3_key_temp` | string | Full S3 URI of the original input file. Format: `s3://bucket/path` |
+| `audio_duration` | int \| null | Duration in seconds, null on failure |
+| `success` | boolean | `true` if processing succeeded, `false` otherwise |
+| `request_id` | string \| undefined | Original request ID (AudioFileId) if provided |
 
 **Response (200 OK):**
 ```json
@@ -268,6 +279,7 @@ Soft deletes an audio file (sets `is_deleted` flag).
 1. Updates preprocessing `processing_status` to `Completed` or `Failed`
 2. Sets `audio_duration_seconds` if successful
 3. Sets `processing_completed_at` timestamp
+4. Validates `request_id` correlation with AudioFileId (logs warning on mismatch)
 
 ---
 
@@ -333,9 +345,24 @@ When file upload is confirmed, backend sends message to SQS:
 {
   "s3_key_temp": "s3://voice-by-auribus-audio-files/audio-files/{userId}/temp/{fileId}.mp3",
   "s3_key_short": "s3://voice-by-auribus-audio-files/audio-files/{userId}/short/{fileId}.mp3",
-  "s3_key_for_inference": "s3://voice-by-auribus-audio-files/audio-files/{userId}/inference/{fileId}.mp3"
+  "s3_key_for_inference": "s3://voice-by-auribus-audio-files/audio-files/{userId}/inference/{fileId}.mp3",
+  "request_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "callback_response": {
+    "url": "https://api.example.com/api/v1/audio-files/webhooks/preprocessing-result",
+    "type": "HTTP"
+  }
 }
 ```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `s3_key_temp` | string | Full S3 URI for the temporary (original) uploaded audio file. Format: `s3://bucket/path` |
+| `s3_key_short` | string | Full S3 URI where the short preview audio will be stored |
+| `s3_key_for_inference` | string | Full S3 URI where the inference-ready audio will be stored |
+| `request_id` | string (optional) | Unique identifier for tracking (AudioFileId is used) |
+| `callback_response` | object (optional) | Callback configuration for receiving processing results |
+| `callback_response.url` | string | Destination URL (HTTP endpoint or SQS queue URL) |
+| `callback_response.type` | string | Either `"HTTP"` or `"SQS"` |
 
 ### 2. External Service Processing
 
@@ -346,13 +373,32 @@ External service:
    - Generates 10-second preview → uploads to `s3_key_short`
    - Processes for inference → uploads to `s3_key_for_inference`
    - Measures audio duration
-4. Calls webhook with results
+4. Calls callback URL (HTTP or SQS) with results
 
-### 3. Result Handling
+### 3. Callback Notification Response
+
+```json
+{
+  "s3_key_temp": "s3://voice-by-auribus-audio-files/audio-files/{userId}/temp/{fileId}.mp3",
+  "audio_duration": 45,
+  "success": true,
+  "request_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `s3_key_temp` | string | Full S3 URI of the original input file. Format: `s3://bucket/path` |
+| `audio_duration` | int \| null | Duration in seconds, null on failure |
+| `success` | boolean | `true` if processing succeeded, `false` otherwise |
+| `request_id` | string \| undefined | Original request ID if provided in the request |
+
+### 4. Result Handling
 
 Backend receives result and updates database:
 - Success: Sets `status` = `Completed`, stores `audio_duration`
 - Failure: Sets `status` = `Failed`, stores `error_message`
+- Request ID validation: Logs warning if request_id doesn't match AudioFileId
 
 ---
 
@@ -380,7 +426,9 @@ Backend receives result and updates database:
       "MaxFileSizeMB": 100
     },
     "SQS": {
-      "AudioPreprocessingQueueUrl": "https://sqs.us-east-1.amazonaws.com/{accountId}/audio-preprocessing-queue"
+      "AudioPreprocessingQueue": "aurivoice-svs-prep-nbl.fifo",
+      "PreprocessingCallbackUrl": "https://api.example.com/api/v1/audio-files/webhooks/preprocessing-result",
+      "PreprocessingCallbackType": "HTTP"
     }
   },
   "Webhooks": {
@@ -388,6 +436,12 @@ Backend receives result and updates database:
   }
 }
 ```
+
+| Setting | Description |
+|---------|-------------|
+| `AudioPreprocessingQueue` | Name of the SQS queue for preprocessing messages |
+| `PreprocessingCallbackUrl` | URL for receiving preprocessing results (HTTP endpoint or SQS queue URL) |
+| `PreprocessingCallbackType` | Callback type: `"HTTP"` or `"SQS"` |
 
 ---
 

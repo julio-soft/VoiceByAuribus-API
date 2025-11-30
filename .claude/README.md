@@ -364,6 +364,8 @@ The API uses **AWS Cognito M2M authentication** with scope-based authorization.
 - Audio file upload via pre-signed URLs
 - S3 event-driven upload notifications (Lambda)
 - Automatic preprocessing pipeline (SQS)
+- **Preprocessing SQS Message**: Includes `request_id` (AudioFileId) and `callback_response` (URL + type)
+- **Preprocessing Webhook Result**: Uses explicit `success` boolean and `request_id` for correlation
 - Processing status tracking
 - User ownership and soft delete
 

@@ -28,6 +28,10 @@ public class AudioPreprocessingService(
     private readonly string _audioBucket = configuration["AWS:S3:AudioFilesBucket"]
         ?? throw new InvalidOperationException("AWS:S3:AudioFilesBucket configuration is required");
 
+    private readonly string? _callbackUrl = configuration["AWS:SQS:PreprocessingCallbackUrl"];
+    
+    private readonly string _callbackType = configuration["AWS:SQS:PreprocessingCallbackType"] ?? "HTTP";
+
     public async Task TriggerPreprocessingAsync(Guid audioFileId)
     {
         logger.LogInformation(
@@ -71,12 +75,20 @@ public class AudioPreprocessingService(
         // Resolve queue URL from queue name
         var queueUrl = await sqsQueueResolver.GetQueueUrlAsync(_queueName);
         
-        // Send message to SQS
+        // Send message to SQS with request tracking and callback configuration
         var message = new PreprocessingMessageDto
         {
             S3KeyTemp = audioFile.S3Uri,
             S3KeyShort = audioFile.Preprocessing.S3UriShort!,
-            S3KeyForInference = audioFile.Preprocessing.S3UriInference!
+            S3KeyForInference = audioFile.Preprocessing.S3UriInference!,
+            RequestId = audioFile.Id.ToString(),
+            CallbackResponse = !string.IsNullOrEmpty(_callbackUrl) 
+                ? new CallbackResponseDto 
+                { 
+                    Url = _callbackUrl, 
+                    Type = _callbackType 
+                } 
+                : null
         };
 
         await sqsService.SendMessageAsync(queueUrl, message);
@@ -94,8 +106,8 @@ public class AudioPreprocessingService(
     public async Task HandlePreprocessingResultAsync(PreprocessingResultDto dto)
     {
         logger.LogInformation(
-            "Processing preprocessing result: S3KeyTemp={S3KeyTemp}, AudioDuration={AudioDuration}",
-            dto.S3KeyTemp, dto.AudioDuration);
+            "Processing preprocessing result: S3KeyTemp={S3KeyTemp}, AudioDuration={AudioDuration}, Success={Success}, RequestId={RequestId}",
+            dto.S3KeyTemp, dto.AudioDuration, dto.Success, dto.RequestId);
 
         var audioFile = await context.AudioFiles
             .Include(af => af.Preprocessing)
@@ -109,6 +121,14 @@ public class AudioPreprocessingService(
             throw new InvalidOperationException($"Audio file not found for S3 URI: {dto.S3KeyTemp}");
         }
 
+        // Validate request_id correlation if provided
+        if (!string.IsNullOrEmpty(dto.RequestId) && dto.RequestId != audioFile.Id.ToString())
+        {
+            logger.LogWarning(
+                "Request ID mismatch: Expected={ExpectedId}, Received={ReceivedId}",
+                audioFile.Id, dto.RequestId);
+        }
+
         if (audioFile.Preprocessing is null)
         {
             logger.LogError(
@@ -119,7 +139,8 @@ public class AudioPreprocessingService(
 
         var preprocessing = audioFile.Preprocessing;
 
-        if (dto.AudioDuration.HasValue)
+        // Use the explicit success field to determine processing outcome
+        if (dto.Success && dto.AudioDuration.HasValue)
         {
             // Success
             preprocessing.ProcessingStatus = ProcessingStatus.Completed;
@@ -131,13 +152,15 @@ public class AudioPreprocessingService(
         }
         else
         {
-            // Failed
+            // Failed - either success=false or no audio_duration provided
             preprocessing.ProcessingStatus = ProcessingStatus.Failed;
-            preprocessing.ErrorMessage = "Audio duration not provided - preprocessing failed";
+            preprocessing.ErrorMessage = dto.Success 
+                ? "Audio duration not provided despite success flag - preprocessing incomplete"
+                : "Preprocessing service reported failure";
             
             logger.LogWarning(
-                "Preprocessing failed: AudioFileId={AudioFileId}, Reason={Reason}",
-                audioFile.Id, preprocessing.ErrorMessage);
+                "Preprocessing failed: AudioFileId={AudioFileId}, Success={Success}, Reason={Reason}",
+                audioFile.Id, dto.Success, preprocessing.ErrorMessage);
         }
 
         preprocessing.ProcessingCompletedAt = dateTimeProvider.UtcNow;

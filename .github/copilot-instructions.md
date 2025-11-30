@@ -90,6 +90,15 @@ VoiceByAuribus.AudioUploadNotifier/  # AWS Lambda for S3 upload notifications
 - **User Ownership**: AudioFile implements `IHasUserId` for automatic user isolation
 - **Admin Data**: S3 URIs and preprocessing details only visible to admins
 - **Webhooks**: `/webhooks/upload-notification` and `/webhooks/preprocessing-result` use `WebhookAuthenticationAttribute` with API key
+- **SQS Message Schema**: Preprocessing messages include:
+  - `s3_key_temp`, `s3_key_short`, `s3_key_for_inference`: Full S3 URIs (format: `s3://bucket/path`)
+  - `request_id` (optional): AudioFileId for request/response correlation
+  - `callback_response` (optional): `{url, type}` for HTTP or SQS callback configuration
+- **Webhook Result Schema**: Preprocessing results include:
+  - `s3_key_temp`: Full S3 URI for lookup (matches AudioFile.S3Uri)
+  - `audio_duration`: Duration in seconds (null on failure)
+  - `success`: Explicit boolean for success/failure status
+  - `request_id`: Original request ID if provided
 
 ### Voice Conversions
 
