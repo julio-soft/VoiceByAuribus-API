@@ -158,7 +158,7 @@ public class Function
             Content = new StringContent(jsonContent, Encoding.UTF8, "application/json")
         };
 
-        request.Headers.Add("X-Webhook-Api-Key", _webhookApiKey);
+        request.Headers.Add("Authorization", $"Bearer {_webhookApiKey}");
 
         context.Logger.LogInformation($"Sending POST request to: {webhookUrl}");
 
