@@ -426,7 +426,7 @@ Backend receives result and updates database:
       "MaxFileSizeMB": 100
     },
     "SQS": {
-      "AudioPreprocessingQueue": "aurivoice-svs-prep-nbl.fifo",
+      "AudioPreprocessingQueue": "voice-by-auribus-preprocessing.fifo",
       "PreprocessingCallbackUrl": "https://api.example.com/api/v1/audio-files/webhooks/preprocessing-result",
       "PreprocessingCallbackType": "HTTP"
     }

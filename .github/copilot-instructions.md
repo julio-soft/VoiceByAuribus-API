@@ -86,7 +86,7 @@ VoiceByAuribus.AudioUploadNotifier/  # AWS Lambda for S3 upload notifications
 
 - **Upload Flow**: Client creates record → receives pre-signed PUT URL → uploads to S3 → Lambda notifies backend → preprocessing triggered
 - **S3 Structure**: `audio-files/{userId}/{temp|short|inference}/{fileId}.ext`
-- **Processing**: External service reads from SQS (`aurivoice-svs-prep-nbl.fifo`), generates 10s preview + inference-ready file, callbacks backend
+- **Processing**: External service reads from SQS (`voice-by-auribus-preprocessing.fifo`), generates 10s preview + inference-ready file, callbacks backend
 - **User Ownership**: AudioFile implements `IHasUserId` for automatic user isolation
 - **Admin Data**: S3 URIs and preprocessing details only visible to admins
 - **Webhooks**: `/webhooks/upload-notification` and `/webhooks/preprocessing-result` use `WebhookAuthenticationAttribute` with API key
@@ -279,7 +279,7 @@ To test all projects: `dotnet test VoiceByAuribus-API.sln`
 
 - **S3**: Audio file storage, voice model storage
 - **SQS**: Multiple queues for async processing
-  - `aurivoice-svs-prep-nbl.fifo`: Audio preprocessing (FIFO)
+  - `voice-by-auribus-preprocessing.fifo`: Audio preprocessing (FIFO)
   - `voice-by-auribus-inference-paid-preview`: For preview conversions (`use_preview=true`)
   - `voice-by-auribus-inference-paid-main`: For full conversions with `transposition=0` (SameOctave)
   - `voice-by-auribus-inference-paid-alt`: For full conversions with `transposition!=0` (any pitch shift)

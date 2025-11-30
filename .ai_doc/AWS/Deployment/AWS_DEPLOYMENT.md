@@ -205,7 +205,7 @@ cat > /tmp/instance-policy.json <<EOF
       "Effect": "Allow",
       "Action": "sqs:*",
       "Resource": [
-        "arn:aws:sqs:us-east-1:$AWS_ACCOUNT_ID:aurivoice-svs-prep-nbl.fifo",
+        "arn:aws:sqs:us-east-1:$AWS_ACCOUNT_ID:voice-by-auribus-preprocessing.fifo",
         "arn:aws:sqs:us-east-1:$AWS_ACCOUNT_ID:aurivoice-svs-previews-nbl.fifo",
         "arn:aws:sqs:us-east-1:$AWS_ACCOUNT_ID:aurivoice-svs-inf-g1-nbl.fifo",
         "arn:aws:sqs:us-east-1:$AWS_ACCOUNT_ID:aurivoice-svs-inf-g1-nbl-alt.fifo"

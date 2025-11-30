@@ -216,8 +216,8 @@ public class SqsQueueResolverTests
     public async Task GetQueueUrlAsync_WithFifoQueue_ResolvesFifoQueueUrl()
     {
         // Arrange
-        const string queueName = "aurivoice-svs-prep-nbl.fifo";
-        const string expectedUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/aurivoice-svs-prep-nbl.fifo";
+        const string queueName = "voice-by-auribus-preprocessing.fifo";
+        const string expectedUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/voice-by-auribus-preprocessing.fifo";
 
         _mockSqsClient
             .Setup(x => x.GetQueueUrlAsync(It.Is<GetQueueUrlRequest>(r => r.QueueName == queueName), default))

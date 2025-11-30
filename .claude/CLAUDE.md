@@ -168,7 +168,7 @@ Features/FeatureName/
          "MaxFileSizeMB": 100
        },
        "SQS": {
-         "AudioPreprocessingQueue": "aurivoice-svs-prep-nbl.fifo",
+         "AudioPreprocessingQueue": "voice-by-auribus-preprocessing.fifo",
          "PreviewInferenceQueue": "voice-by-auribus-inference-paid-preview",
          "MainInferenceQueue": "voice-by-auribus-inference-paid-main",
          "AltInferenceQueue": "voice-by-auribus-inference-paid-alt"
