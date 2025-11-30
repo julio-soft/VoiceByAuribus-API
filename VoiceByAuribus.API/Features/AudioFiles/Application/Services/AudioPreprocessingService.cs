@@ -192,14 +192,14 @@ public class AudioPreprocessingService(
 
     private string BuildS3UriShort(AudioFile audioFile)
     {
-        var userId = audioFile.UserId!.Value;
+        var userId = audioFile.UserId!;
         var fileId = audioFile.Id;
         return $"s3://{_audioBucket}/audio-files/{userId}/short/{fileId}.mp3";
     }
 
     private string BuildS3UriInference(AudioFile audioFile)
     {
-        var userId = audioFile.UserId!.Value;
+        var userId = audioFile.UserId!;
         var fileId = audioFile.Id;
         return $"s3://{_audioBucket}/audio-files/{userId}/inference/{fileId}.mp3";
     }

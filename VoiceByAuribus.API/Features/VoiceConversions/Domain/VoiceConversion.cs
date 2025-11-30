@@ -12,8 +12,9 @@ public class VoiceConversion : BaseAuditableEntity, IHasUserId
 {
     /// <summary>
     /// ID of the user who created this conversion request.
+    /// For M2M tokens, this is the Cognito client_id.
     /// </summary>
-    public Guid? UserId { get; set; }
+    public string? UserId { get; set; }
 
     /// <summary>
     /// ID of the audio file to be converted.

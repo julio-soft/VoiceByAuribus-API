@@ -41,7 +41,7 @@ public static class ModelBuilderExtensions
             var serviceConstant = Expression.Constant(currentUserService);
             var serviceUserIdProperty = Expression.Property(serviceConstant, nameof(ICurrentUserService.UserId));
 
-            var userIdNull = Expression.Equal(serviceUserIdProperty, Expression.Constant(null, typeof(Guid?)));
+            var userIdNull = Expression.Equal(serviceUserIdProperty, Expression.Constant(null, typeof(string)));
             var userMatches = Expression.Equal(userIdProperty, serviceUserIdProperty);
             var userFilter = Expression.OrElse(userIdNull, userMatches);
 

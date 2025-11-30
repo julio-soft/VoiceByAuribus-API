@@ -10,8 +10,9 @@ public class AudioFile : BaseAuditableEntity, IHasUserId
 {
     /// <summary>
     /// ID of the user who owns this audio file.
+    /// For M2M tokens, this is the Cognito client_id.
     /// </summary>
-    public Guid? UserId { get; set; }
+    public string? UserId { get; set; }
 
     /// <summary>
     /// Original filename provided by the user.

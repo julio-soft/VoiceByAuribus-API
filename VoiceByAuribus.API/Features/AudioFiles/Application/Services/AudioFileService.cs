@@ -28,7 +28,7 @@ public class AudioFileService(
     private readonly int _uploadExpirationMinutes = configuration.GetValue<int>("AWS:S3:UploadUrlExpirationMinutes");
     private readonly long _maxFileSizeBytes = configuration.GetValue<int>("AWS:S3:MaxFileSizeMB") * 1024 * 1024;
 
-    public async Task<AudioFileCreatedResponseDto> CreateAudioFileAsync(CreateAudioFileDto dto, Guid userId)
+    public async Task<AudioFileCreatedResponseDto> CreateAudioFileAsync(CreateAudioFileDto dto, string userId)
     {
         logger.LogInformation(
             "Creating audio file: FileName={FileName}, MimeType={MimeType}, UserId={UserId}",
@@ -66,7 +66,7 @@ public class AudioFileService(
         };
     }
 
-    public async Task<RegenerateUploadUrlResponseDto> RegenerateUploadUrlAsync(Guid id, Guid userId)
+    public async Task<RegenerateUploadUrlResponseDto> RegenerateUploadUrlAsync(Guid id, string userId)
     {
         logger.LogInformation(
             "Regenerating upload URL: AudioFileId={AudioFileId}, UserId={UserId}",
@@ -105,7 +105,7 @@ public class AudioFileService(
         };
     }
 
-    public async Task<AudioFileResponseDto?> GetAudioFileByIdAsync(Guid id, Guid userId, bool isAdmin)
+    public async Task<AudioFileResponseDto?> GetAudioFileByIdAsync(Guid id, string userId, bool isAdmin)
     {
         var audioFile = await context.AudioFiles
             .Include(af => af.Preprocessing)
@@ -120,7 +120,7 @@ public class AudioFileService(
         return AudioFileMapper.MapToResponseDto(audioFile, isAdmin);
     }
 
-    public async Task<(AudioFileResponseDto[] Items, int TotalCount)> GetUserAudioFilesAsync(Guid userId, int page, int pageSize)
+    public async Task<(AudioFileResponseDto[] Items, int TotalCount)> GetUserAudioFilesAsync(string userId, int page, int pageSize)
     {
         var query = context.AudioFiles
             .Include(af => af.Preprocessing)
@@ -140,7 +140,7 @@ public class AudioFileService(
         return (items, totalCount);
     }
 
-    public async Task<bool> SoftDeleteAsync(Guid id, Guid userId)
+    public async Task<bool> SoftDeleteAsync(Guid id, string userId)
     {
         logger.LogInformation(
             "Soft deleting audio file: AudioFileId={AudioFileId}, UserId={UserId}",
@@ -196,7 +196,7 @@ public class AudioFileService(
         await preprocessingService.TriggerPreprocessingAsync(audioFile.Id);
     }
 
-    private string BuildS3Uri(Guid userId, Guid fileId, string mimeType)
+    private string BuildS3Uri(string userId, Guid fileId, string mimeType)
     {
         var extension = GetExtensionFromMimeType(mimeType);
         return $"s3://{_audioBucket}/audio-files/{userId}/temp/{fileId}{extension}";

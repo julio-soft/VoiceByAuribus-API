@@ -14,14 +14,14 @@ public interface IVoiceConversionService
     /// </summary>
     /// <param name="dto">The conversion request data</param>
     /// <param name="userId">ID of the user creating the conversion</param>
-    Task<VoiceConversionResponseDto> CreateVoiceConversionAsync(CreateVoiceConversionDto dto, Guid userId);
+    Task<VoiceConversionResponseDto> CreateVoiceConversionAsync(CreateVoiceConversionDto dto, string userId);
 
     /// <summary>
     /// Gets a voice conversion by ID.
     /// </summary>
     /// <param name="conversionId">ID of the conversion</param>
     /// <param name="userId">ID of the current user</param>
-    Task<VoiceConversionResponseDto?> GetVoiceConversionAsync(Guid conversionId, Guid userId);
+    Task<VoiceConversionResponseDto?> GetVoiceConversionAsync(Guid conversionId, string userId);
 
     /// <summary>
     /// Handles webhook callback from external voice conversion service.

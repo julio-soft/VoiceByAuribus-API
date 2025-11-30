@@ -27,7 +27,7 @@ public class WebhookSubscriptionService(
     /// <inheritdoc />
     public async Task<CreatedWebhookSubscriptionResponseDto> CreateSubscriptionAsync(
         CreateWebhookSubscriptionDto dto,
-        Guid userId)
+        string userId)
     {
         // Check subscription limit
         var existingCount = await context.WebhookSubscriptions
@@ -68,7 +68,7 @@ public class WebhookSubscriptionService(
     }
 
     /// <inheritdoc />
-    public async Task<IEnumerable<WebhookSubscriptionResponseDto>> GetUserSubscriptionsAsync(Guid userId)
+    public async Task<IEnumerable<WebhookSubscriptionResponseDto>> GetUserSubscriptionsAsync(string userId)
     {
         var subscriptions = await context.WebhookSubscriptions
             .Where(s => s.UserId == userId)
@@ -80,7 +80,7 @@ public class WebhookSubscriptionService(
     }
 
     /// <inheritdoc />
-    public async Task<WebhookSubscriptionResponseDto?> GetSubscriptionByIdAsync(Guid id, Guid userId)
+    public async Task<WebhookSubscriptionResponseDto?> GetSubscriptionByIdAsync(Guid id, string userId)
     {
         var subscription = await context.WebhookSubscriptions
             .AsNoTracking()
@@ -93,7 +93,7 @@ public class WebhookSubscriptionService(
     public async Task<WebhookSubscriptionResponseDto?> UpdateSubscriptionAsync(
         Guid id,
         UpdateWebhookSubscriptionDto dto,
-        Guid userId)
+        string userId)
     {
         var subscription = await context.WebhookSubscriptions
             .FirstOrDefaultAsync(s => s.Id == id && s.UserId == userId);
@@ -135,7 +135,7 @@ public class WebhookSubscriptionService(
     }
 
     /// <inheritdoc />
-    public async Task<bool> DeleteSubscriptionAsync(Guid id, Guid userId)
+    public async Task<bool> DeleteSubscriptionAsync(Guid id, string userId)
     {
         var subscription = await context.WebhookSubscriptions
             .FirstOrDefaultAsync(s => s.Id == id && s.UserId == userId);
@@ -155,7 +155,7 @@ public class WebhookSubscriptionService(
     }
 
     /// <inheritdoc />
-    public async Task<RegenerateSecretResponseDto> RegenerateSecretAsync(Guid id, Guid userId)
+    public async Task<RegenerateSecretResponseDto> RegenerateSecretAsync(Guid id, string userId)
     {
         var subscription = await context.WebhookSubscriptions
             .FirstOrDefaultAsync(s => s.Id == id && s.UserId == userId);
@@ -190,7 +190,7 @@ public class WebhookSubscriptionService(
     }
 
     /// <inheritdoc />
-    public async Task<WebhookTestResultDto> TestWebhookAsync(Guid id, Guid userId)
+    public async Task<WebhookTestResultDto> TestWebhookAsync(Guid id, string userId)
     {
         var subscription = await context.WebhookSubscriptions
             .FirstOrDefaultAsync(s => s.Id == id && s.UserId == userId);
@@ -280,7 +280,7 @@ public class WebhookSubscriptionService(
     /// <inheritdoc />
     public async Task<IEnumerable<WebhookDeliveryLogResponseDto>> GetDeliveryLogsAsync(
         Guid subscriptionId,
-        Guid userId,
+        string userId,
         int limit = 100)
     {
         // Verify ownership

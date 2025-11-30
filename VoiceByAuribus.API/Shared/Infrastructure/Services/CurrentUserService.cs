@@ -7,6 +7,9 @@ using VoiceByAuribus_API.Shared.Interfaces;
 
 namespace VoiceByAuribus_API.Shared.Infrastructure.Services;
 
+/// <summary>
+/// Service for accessing the current authenticated user's information from the HTTP context.
+/// </summary>
 public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICurrentUserService
 {
     private IReadOnlyCollection<string>? _scopes;
@@ -14,7 +17,12 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
     private HttpContext? HttpContext => httpContextAccessor.HttpContext;
     private ClaimsPrincipal? User => HttpContext?.User;
 
-    public Guid? UserId => TryGetGuidClaim("sub");
+    /// <summary>
+    /// Gets the user ID from the JWT token's 'sub' claim.
+    /// For M2M tokens (Cognito client_credentials), this is the client_id.
+    /// For user tokens, this is the user's unique identifier.
+    /// </summary>
+    public string? UserId => GetClaimValue("sub");
 
     public string? Username =>
         GetClaimValue("preferred_username") ??
@@ -33,12 +41,6 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
         Scopes.Contains(scope, StringComparer.OrdinalIgnoreCase);
 
     public bool IsAdmin => HasScope("voice-by-auribus-api/admin");
-
-    private Guid? TryGetGuidClaim(string claimType)
-    {
-        var value = GetClaimValue(claimType);
-        return Guid.TryParse(value, out var guid) ? guid : null;
-    }
 
     private string? GetClaimValue(string claimType)
     {

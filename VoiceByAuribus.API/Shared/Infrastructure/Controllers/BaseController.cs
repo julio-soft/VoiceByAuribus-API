@@ -20,16 +20,18 @@ public abstract class BaseController : ControllerBase
     }
 
     /// <summary>
-    /// Gets the current authenticated user's Cognito ID
+    /// Gets the current authenticated user's ID from the JWT token.
+    /// For M2M tokens, this is the Cognito client_id.
+    /// For user tokens, this is the user's sub claim.
     /// </summary>
-    protected Guid GetUserId()
+    protected string GetUserId()
     {
         var userId = CurrentUserService.UserId;
-        if (userId is null)
+        if (string.IsNullOrEmpty(userId))
         {
             throw new UnauthorizedAccessException("User is not authenticated");
         }
-        return userId.Value;
+        return userId;
     }
 
     /// <summary>

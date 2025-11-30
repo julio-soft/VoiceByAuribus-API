@@ -53,7 +53,7 @@ public class VoiceConversionService(
     private const int MaxRetryAttempts = 5;
     private const int RetryDelayMinutes = 5;
 
-    public async Task<VoiceConversionResponseDto> CreateVoiceConversionAsync(CreateVoiceConversionDto dto, Guid userId)
+    public async Task<VoiceConversionResponseDto> CreateVoiceConversionAsync(CreateVoiceConversionDto dto, string userId)
     {
         logger.LogInformation(
             "Creating voice conversion: AudioFileId={AudioFileId}, VoiceModelId={VoiceModelId}, PitchShift={PitchShift}, UsePreview={UsePreview}, UserId={UserId}",
@@ -175,7 +175,7 @@ public class VoiceConversionService(
             currentUserService.IsAdmin);
     }
 
-    public async Task<VoiceConversionResponseDto?> GetVoiceConversionAsync(Guid conversionId, Guid userId)
+    public async Task<VoiceConversionResponseDto?> GetVoiceConversionAsync(Guid conversionId, string userId)
     {
         logger.LogInformation(
             "Fetching voice conversion: ConversionId={ConversionId}, UserId={UserId}",
@@ -578,7 +578,7 @@ public class VoiceConversionService(
             conversion.Id, deduplicationId, queueName, queueUrl, conversion.UsePreview, (int)conversion.Transposition);
     }
 
-    private string BuildOutputS3Uri(Guid conversionId, Guid userId, string fileName, Transposition transposition, bool isPreview = false)
+    private string BuildOutputS3Uri(Guid conversionId, string userId, string fileName, Transposition transposition, bool isPreview = false)
     {
         var sanitizedFileName = SanitizeFileName(fileName);
         return $"s3://{_audioBucket}/audio-files/{userId}/converted/{sanitizedFileName}_{PitchShiftHelper.ToPitchShiftString(transposition)}{(isPreview ? "_preview" : "")}_{conversionId}.wav";

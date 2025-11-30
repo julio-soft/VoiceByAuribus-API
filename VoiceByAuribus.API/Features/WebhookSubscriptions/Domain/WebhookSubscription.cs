@@ -10,8 +10,9 @@ public class WebhookSubscription : BaseAuditableEntity, IHasUserId
 {
     /// <summary>
     /// Gets or sets the ID of the user who owns this webhook subscription.
+    /// For M2M tokens, this is the Cognito client_id.
     /// </summary>
-    public Guid? UserId { get; set; }
+    public string? UserId { get; set; }
 
     /// <summary>
     /// Gets or sets the HTTPS URL where webhook notifications will be sent.

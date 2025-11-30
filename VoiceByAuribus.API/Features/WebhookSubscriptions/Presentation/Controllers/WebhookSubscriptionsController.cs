@@ -35,7 +35,7 @@ public class WebhookSubscriptionsController(
     {
         try
         {
-            var userId = currentUserService.UserId!.Value;
+            var userId = GetUserId();
             var subscription = await subscriptionService.CreateSubscriptionAsync(dto, userId);
 
             return Created(
@@ -62,7 +62,7 @@ public class WebhookSubscriptionsController(
     [ProducesResponseType(typeof(ApiResponse<IEnumerable<WebhookSubscriptionResponseDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSubscriptions()
     {
-        var userId = currentUserService.UserId!.Value;
+        var userId = GetUserId();
         var subscriptions = await subscriptionService.GetUserSubscriptionsAsync(userId);
         return Success(subscriptions);
     }
@@ -77,7 +77,7 @@ public class WebhookSubscriptionsController(
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetSubscription([FromRoute] Guid id)
     {
-        var userId = currentUserService.UserId!.Value;
+        var userId = GetUserId();
         var subscription = await subscriptionService.GetSubscriptionByIdAsync(id, userId);
 
         if (subscription is null)
@@ -102,7 +102,7 @@ public class WebhookSubscriptionsController(
         [FromRoute] Guid id,
         [FromBody] UpdateWebhookSubscriptionDto dto)
     {
-        var userId = currentUserService.UserId!.Value;
+        var userId = GetUserId();
         var subscription = await subscriptionService.UpdateSubscriptionAsync(id, dto, userId);
 
         if (subscription is null)
@@ -124,7 +124,7 @@ public class WebhookSubscriptionsController(
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteSubscription([FromRoute] Guid id)
     {
-        var userId = currentUserService.UserId!.Value;
+        var userId = GetUserId();
         var deleted = await subscriptionService.DeleteSubscriptionAsync(id, userId);
 
         if (!deleted)
@@ -153,7 +153,7 @@ public class WebhookSubscriptionsController(
     {
         try
         {
-            var userId = currentUserService.UserId!.Value;
+            var userId = GetUserId();
             var result = await subscriptionService.RegenerateSecretAsync(id, userId);
 
             return Success(result, "Secret regenerated successfully");
@@ -178,7 +178,7 @@ public class WebhookSubscriptionsController(
     {
         try
         {
-            var userId = currentUserService.UserId!.Value;
+            var userId = GetUserId();
             var result = await subscriptionService.TestWebhookAsync(id, userId);
 
             return Success(result);
@@ -203,7 +203,7 @@ public class WebhookSubscriptionsController(
         [FromRoute] Guid id,
         [FromQuery] int limit = 100)
     {
-        var userId = currentUserService.UserId!.Value;
+        var userId = GetUserId();
         var logs = await subscriptionService.GetDeliveryLogsAsync(id, userId, limit);
 
         if (!logs.Any())
