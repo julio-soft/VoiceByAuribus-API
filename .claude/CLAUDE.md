@@ -169,8 +169,9 @@ Features/FeatureName/
        },
        "SQS": {
          "AudioPreprocessingQueue": "aurivoice-svs-prep-nbl.fifo",
-         "VoiceInferenceQueue": "voice-inference-queue",
-         "PreviewInferenceQueue": "preview-inference-queue"
+         "PreviewInferenceQueue": "voice-by-auribus-inference-paid-preview",
+         "MainInferenceQueue": "voice-by-auribus-inference-paid-main",
+         "AltInferenceQueue": "voice-by-auribus-inference-paid-alt"
        }
      }
    }

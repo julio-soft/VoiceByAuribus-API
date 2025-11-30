@@ -448,8 +448,9 @@ AWS:S3:AudioFilesBucket
 AWS:S3:UploadUrlExpirationMinutes
 AWS:S3:MaxFileSizeMB
 AWS:SQS:AudioPreprocessingQueue
-AWS:SQS:VoiceInferenceQueue
 AWS:SQS:PreviewInferenceQueue
+AWS:SQS:MainInferenceQueue
+AWS:SQS:AltInferenceQueue
 ```
 
 **Secrets Manager key conversion:**

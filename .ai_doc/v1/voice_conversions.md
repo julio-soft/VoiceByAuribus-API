@@ -228,8 +228,16 @@ A Lambda function processes pending conversions every 5 minutes:
 
 ## SQS Message Format
 
-When a conversion is queued, the following message is sent to the voice inference queue:
+When a conversion is queued, the message is sent to one of three queues based on conversion parameters:
 
+**Queue Selection Logic:**
+| Condition | Queue Name |
+|-----------|------------|
+| `use_preview = true` | `voice-by-auribus-inference-paid-preview` |
+| `transposition = 0` (SameOctave) | `voice-by-auribus-inference-paid-main` |
+| `transposition != 0` (any pitch shift) | `voice-by-auribus-inference-paid-alt` |
+
+**Message Format:**
 ```json
 {
   "request_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
@@ -306,8 +314,9 @@ CREATE INDEX "ix_voice_conversions_status_retry_count"
       "AudioFilesBucket": "voice-by-auribus-api"
     },
     "SQS": {
-      "VoiceInferenceQueue": "voice-inference-queue",
-      "PreviewInferenceQueue": "preview-inference-queue",
+      "PreviewInferenceQueue": "voice-by-auribus-inference-paid-preview",
+      "MainInferenceQueue": "voice-by-auribus-inference-paid-main",
+      "AltInferenceQueue": "voice-by-auribus-inference-paid-alt",
       "VoiceConversionCallbackUrl": "https://api.example.com/api/v1/voice-conversions/webhooks/conversion-result",
       "VoiceConversionCallbackType": "HTTP"
     }
@@ -323,8 +332,9 @@ CREATE INDEX "ix_voice_conversions_status_retry_count"
 ConnectionStrings__DefaultConnection=Host=rds-endpoint;Port=5432;Database=db;Username=user;Password=pass
 AWS__Region=us-east-1
 AWS__S3__AudioFilesBucket=voice-by-auribus-api
-AWS__SQS__VoiceInferenceQueue=voice-inference-queue
-AWS__SQS__PreviewInferenceQueue=preview-inference-queue
+AWS__SQS__PreviewInferenceQueue=voice-by-auribus-inference-paid-preview
+AWS__SQS__MainInferenceQueue=voice-by-auribus-inference-paid-main
+AWS__SQS__AltInferenceQueue=voice-by-auribus-inference-paid-alt
 AWS__SQS__VoiceConversionCallbackUrl=https://api.example.com/webhooks/conversion-result
 AWS__SQS__VoiceConversionCallbackType=HTTP
 ```

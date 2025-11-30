@@ -106,7 +106,10 @@ VoiceByAuribus.AudioUploadNotifier/  # AWS Lambda for S3 upload notifications
 - **Status Flow**: `PendingPreprocessing` → `Queued` → `Processing` → `Completed`/`Failed`
 - **Optimistic Locking**: Uses `RowVersion` to prevent race conditions in multi-instance deployments
 - **Retry Logic**: Max 5 attempts with 5-minute delay between retries
-- **Queues**: Sends to `VoiceInferenceQueue` (full audio) or `PreviewInferenceQueue` (10s preview)
+- **Queues**: ⭐ **3 SQS Queues** for different conversion types:
+  - `voice-by-auribus-inference-paid-preview`: For preview conversions (`use_preview=true`)
+  - `voice-by-auribus-inference-paid-main`: For full conversions with `transposition=0` (SameOctave)
+  - `voice-by-auribus-inference-paid-alt`: For full conversions with `transposition!=0` (any pitch shift)
 - **Pitch Shifting**: ⭐ **CRITICAL CONVENTION** - ALWAYS use `pitch_shift` abstraction in external APIs
   - **Internal**: `Transposition` enum (`SameOctave`, `LowerOctave`, etc.)
   - **External API**: `pitch_shift` string (`"same_octave"`, `"lower_octave"`, etc.)
@@ -277,8 +280,9 @@ To test all projects: `dotnet test VoiceByAuribus-API.sln`
 - **S3**: Audio file storage, voice model storage
 - **SQS**: Multiple queues for async processing
   - `aurivoice-svs-prep-nbl.fifo`: Audio preprocessing (FIFO)
-  - `VoiceInferenceQueue`: Full audio voice conversions
-  - `PreviewInferenceQueue`: Preview (10s) voice conversions
+  - `voice-by-auribus-inference-paid-preview`: For preview conversions (`use_preview=true`)
+  - `voice-by-auribus-inference-paid-main`: For full conversions with `transposition=0` (SameOctave)
+  - `voice-by-auribus-inference-paid-alt`: For full conversions with `transposition!=0` (any pitch shift)
   - Use `SqsQueueResolver` for queue name → URL resolution with caching
 - **Lambda**: S3 upload event handler (`VoiceByAuribus.AudioUploadNotifier`)
 - **Cognito**: M2M authentication with resource server scopes

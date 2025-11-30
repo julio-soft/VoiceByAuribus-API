@@ -33,11 +33,14 @@ public class VoiceConversionService(
     ILogger<VoiceConversionService> logger,
     IWebhookEventPublisher? webhookEventPublisher = null) : IVoiceConversionService
 {
-    private readonly string _inferenceQueueName = configuration["AWS:SQS:VoiceInferenceQueue"]
-        ?? throw new InvalidOperationException("AWS:SQS:VoiceInferenceQueue configuration is required");
-
     private readonly string _previewInferenceQueueName = configuration["AWS:SQS:PreviewInferenceQueue"]
         ?? throw new InvalidOperationException("AWS:SQS:PreviewInferenceQueue configuration is required");
+
+    private readonly string _mainInferenceQueueName = configuration["AWS:SQS:MainInferenceQueue"]
+        ?? throw new InvalidOperationException("AWS:SQS:MainInferenceQueue configuration is required");
+
+    private readonly string _altInferenceQueueName = configuration["AWS:SQS:AltInferenceQueue"]
+        ?? throw new InvalidOperationException("AWS:SQS:AltInferenceQueue configuration is required");
 
     private readonly string _audioBucket = configuration["AWS:S3:AudioFilesBucket"]
         ?? throw new InvalidOperationException("AWS:S3:AudioFilesBucket configuration is required");
@@ -481,8 +484,8 @@ public class VoiceConversionService(
         VoiceByAuribus_API.Features.AudioFiles.Domain.AudioFile audioFile)
     {
         logger.LogInformation(
-            "Sending conversion to SQS queue: ConversionId={ConversionId}, UsePreview={UsePreview}",
-            conversion.Id, conversion.UsePreview);
+            "Sending conversion to SQS queue: ConversionId={ConversionId}, UsePreview={UsePreview}, Transposition={Transposition}",
+            conversion.Id, conversion.UsePreview, (int)conversion.Transposition);
 
         // Select the appropriate S3 URI based on UsePreview
         string inputS3Uri;
@@ -544,8 +547,23 @@ public class VoiceConversionService(
         // only one message will be delivered to SQS (within 5-minute deduplication window for FIFO queues)
         var deduplicationId = conversion.Id.ToString();
 
-        // Select the appropriate queue name based on UsePreview
-        var queueName = conversion.UsePreview ? _previewInferenceQueueName : _inferenceQueueName;
+        // Select the appropriate queue based on:
+        // 1. Preview → PreviewInferenceQueue
+        // 2. Transposition == 0 (SameOctave) → MainInferenceQueue
+        // 3. Transposition != 0 → AltInferenceQueue
+        string queueName;
+        if (conversion.UsePreview)
+        {
+            queueName = _previewInferenceQueueName;
+        }
+        else if ((int)conversion.Transposition == 0)
+        {
+            queueName = _mainInferenceQueueName;
+        }
+        else
+        {
+            queueName = _altInferenceQueueName;
+        }
         
         // Resolve queue URL from queue name
         var queueUrl = await sqsQueueResolver.GetQueueUrlAsync(queueName);
@@ -556,8 +574,8 @@ public class VoiceConversionService(
             deduplicationId);
 
         logger.LogInformation(
-            "Conversion message sent to SQS with deduplication: ConversionId={ConversionId}, DeduplicationId={DeduplicationId}, QueueName={QueueName}, QueueUrl={QueueUrl}, UsePreview={UsePreview}",
-            conversion.Id, deduplicationId, queueName, queueUrl, conversion.UsePreview);
+            "Conversion message sent to SQS with deduplication: ConversionId={ConversionId}, DeduplicationId={DeduplicationId}, QueueName={QueueName}, QueueUrl={QueueUrl}, UsePreview={UsePreview}, Transposition={Transposition}",
+            conversion.Id, deduplicationId, queueName, queueUrl, conversion.UsePreview, (int)conversion.Transposition);
     }
 
     private string BuildOutputS3Uri(Guid conversionId, Guid userId, string fileName, Transposition transposition, bool isPreview = false)
